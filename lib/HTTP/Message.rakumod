@@ -103,6 +103,18 @@ method is-text(--> Bool:D) {
 
 method is-binary(--> Bool:D) { !self.is-text }
 
+method is-chunked(--> Bool:D) {
+# 	multiple transfer-codings can be listed; chunked should be last
+# 	https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
+# 	https://datatracker.ietf.org/doc/html/rfc7230#section-4
+	
+	# TODO : uncomment after confirming testcase
+#     my $enc = self.field('Transfer-Encoding');
+#     $enc and $enc.trim.lc.ends-with: 'chunked'
+	# TODO : remove after implementing
+	...
+}
+
 method content-encoding() {
     $!header.field('Content-Encoding');
 }
@@ -221,6 +233,11 @@ method Str($eol = "\n", :$debug, Bool :$bin) {
     
     # The :bin will be passed from the H::UA
     if not $bin {
+        # do not append eol unless chunked
+        # https://datatracker.ietf.org/doc/html/rfc2616#section-4.3
+        # https://datatracker.ietf.org/doc/html/rfc2616#section-7.2
+        # https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
+        
         $s ~=  $.content ~ $eol if $.content and !$debug;
     }
     if $.content and $debug {

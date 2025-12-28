@@ -56,6 +56,11 @@ method has-content(--> Bool:D) {
 }
 
 method is-chunked(--> Bool:D) {
+# multiple transfer-codings can be listed; chunked should be last
+# https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
+# https://datatracker.ietf.org/doc/html/rfc7230#section-4
+#     my $enc = self.field('Transfer-Encoding');
+#     $enc and $enc.trim.lc.ends-with: 'chunked'
    self.field('Transfer-Encoding')
      && self.field('Transfer-Encoding') eq 'chunked'
 }
