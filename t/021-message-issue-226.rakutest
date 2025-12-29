@@ -1,0 +1,53 @@
+use Test;
+use HTTP::Message;
+
+plan 10;
+
+my constant $CRLF = "\r\n";
+
+# construct request - move to request 042-request-issue-226.rakutest
+# my $m = HTTP::Message.new:
+# 		'four',
+# 		Content-Type => 'text/plain',
+# 		Transfer-Encoding => 'chunked'
+# 		;
+
+my Str:D $expected = join $CRLF,
+	'POST site HTTP/1.1',           # request line
+	'Content-Type: text/plain',     # header
+	'Transfer-Encoding: chunked',   # header
+	'',     # end of header
+	'4',    # chunk size
+	'four', # chunk data
+	'',     # end of chunk
+	'0',    # last chunk
+	$CRLF,  # end of chunk body
+; # FIXME : does not test: trailer, chunk extension
+my $m = HTTP::Message.new.parse: $expected;
+
+isa-ok $m, HTTP::Request, 'detected correct message type';
+is $m.protocol, 'HTTP/1.1', 'protocol';
+is $m.field('Transfer-Encoding'), 'chunked', 'parsed header';
+is $m.content, 'four', 'parsed content';
+ok $m.is-chunked, 'chunked';
+ok $m.is-text, 'text';
+nok $m.is-binary, 'not binary data';
+is $m.Str($CRLF), $expected, 'chunked Str';
+
+# switch to non-chunked; use Content-Length
+$m.remove-field: 'Transfer-Encoding';
+
+# add-content
+$m.add-content: '-five';
+is $m.content, 'four-five', 'add-content';
+
+$expected = join $CRLF,
+	'POST site HTTP/1.1',           # request line
+	'Content-Length: 9',            # header
+	'Content-Type: text/plain',     # header
+	'',                             # end of header
+	'four-five',                    # content
+; # FIXME : does not test: trailer, chunk extension
+is $m.Str(), $expected, 'non-chunked Str';
+
+# vim: expandtab shiftwidth=4

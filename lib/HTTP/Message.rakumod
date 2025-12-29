@@ -238,7 +238,16 @@ method Str($eol = "\n", :$debug, Bool :$bin) {
         # https://datatracker.ietf.org/doc/html/rfc2616#section-7.2
         # https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
         
+        # TODO : replace following line with code following it
         $s ~=  $.content ~ $eol if $.content and !$debug;
+        # TODO : uncomment following code for final implementation
+#         if self.is-chunked {
+#             $s ~= $.content ~ $eol;
+#         }
+#         else {
+#             $s ~= $.content;
+#             self.header.field(Content-Length => self.content.encode.bytes.Str);
+#         }
     }
     if $.content and $debug {
         if $bin || self.is-binary {
