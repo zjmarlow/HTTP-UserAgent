@@ -294,8 +294,10 @@ method chunked-content {
 
 method Str($eol = "\n", :$debug, Bool :$bin) {
     my constant $max_size = 300;
-    self.field(Content-Length => $!content.encode.bytes.Str)
-        unless self.is-chunked;
+    # TODO : reference relevant section of relevant RFC
+    # TODO : need to consider Str vs Buf length ?
+    self.field(Content-Length => ( $!content.?encode or $!content ).bytes.Str)
+        if $!content and not self.field: 'Transfer-Encoding';
     my $s = $.header.Str($eol);
     $s ~= $eol if $.content;
     
@@ -309,7 +311,8 @@ method Str($eol = "\n", :$debug, Bool :$bin) {
 #         # TODO : replace following line with code following it
 #         $s ~=  $.content ~ $eol if $.content and !$debug;
         # TODO : uncomment following code for final implementation
-        $s ~= self.is-chunked ?? self.chunked-content !! $!content;
+        $s ~= self.is-chunked ?? self.chunked-content !! $!content
+            if $!content;
     }
     if $.content and $debug {
         if $bin || self.is-binary {

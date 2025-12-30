@@ -1,10 +1,8 @@
-use lib 'lib';
-
 use Test;
 use HTTP::Request;
 use HTTP::Response;
 
-plan 2;
+plan 3;
 
 my constant $CRLF = "\r\n";
 
@@ -92,6 +90,26 @@ subtest {
 	nok $m2.is-binary, 'not binary';
 	is $m2.field('Content-Length'), '3', 'Content-Length';
 	is $m2.Str, $to_parse, 'non-chunked Str';
-}, 'non-chunked response';
+}, 'parse non-chunked response';
+
+
+
+subtest {
+	plan 4;
+	# parse
+	my Str:D $to_parse = "HTTP/1.1 200 OK\r\n"
+	          ~ "Transfer-Encoding: chunked\r\n"
+	          ~ "\r\n"
+	          ~ "3\r\n"
+	          ~ "a\nb\r\n"
+	          ~ "0\r\n"
+	          ~ "\r\n"
+	          ;
+	my HTTP::Response:D $m2 = HTTP::Response.new.parse($to_parse);
+	ok $m2.is-chunked, 'chunked';
+	ok $m2.is-text, 'text';
+	nok $m2.is-binary, 'not binary';
+	is $m2.Str, $to_parse, 'chunked Str';
+}, 'parse chunked response';
 
 # vim: expandtab shiftwidth=4

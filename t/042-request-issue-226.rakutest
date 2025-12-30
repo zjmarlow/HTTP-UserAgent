@@ -1,5 +1,3 @@
-use lib 'lib';
-
 use Test;
 use URI;
 use HTTP::Request;
