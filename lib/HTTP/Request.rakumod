@@ -116,21 +116,14 @@ method add-cookies($cookies) {
     $cookies.add-cookie-header(self) if $cookies.cookies;
 }
 
-# TODO : proposed method to set request to chunked and specify the chunk size
-# TODO : need to negotiate with server ?
-#   automatically use chunked if server supports ?
-# TODO : specify in UserAgent ?
-method set-chunked(Int $size? = 4096) {
-	
-}
-
 proto method add-content(|) {*}
 
 multi method add-content(Str:D $content) {
     self.content ~= $content;
     # TODO : move calculation to end of Message ( Message.Str method )
     #   and only if not chunked
-    self.header.field(Content-Length => self.content.encode.bytes.Str);
+#     self.header.field(Content-Length => self.content.encode.bytes.Str)
+#         unless self.is-chunked;
 }
 
 proto method add-form-data(|) {*}
@@ -143,6 +136,7 @@ multi method add-form-data(%data, :$multipart) {
     self.add-form-data(%data.sort.Array, :$multipart);
 }
 
+# TODO : verify presence of Content-Length
 multi method add-form-data(Array $data, :$multipart) {
     my $ct = do {
         my $f = self.header.field('Content-Type');

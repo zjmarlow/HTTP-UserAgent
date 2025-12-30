@@ -1,7 +1,10 @@
-use Test;
-use HTTP::Message;
+use lib 'lib';
 
-plan 10;
+use Test;
+use HTTP::Request;
+use HTTP::Response;
+
+plan 2;
 
 my constant $CRLF = "\r\n";
 
@@ -11,43 +14,84 @@ my constant $CRLF = "\r\n";
 # 		Content-Type => 'text/plain',
 # 		Transfer-Encoding => 'chunked'
 # 		;
+subtest {
+	plan 13;
+	my Str:D $expected = join $CRLF,
+		'POST /site HTTP/1.1',          # request line
+		'Content-Type: text/plain',     # header
+		'Transfer-Encoding: chunked',   # header
+		'',         # end of header
+		'6',        # chunk size
+		'- four',   # chunk data
+		'0',        # last chunk
+		$CRLF,      # end of chunk body
+	; # FIXME : does not test: trailer, chunk extension, binary
+	my HTTP::Request:D $m = HTTP::Request.new.parse: $expected;
+	
+	is $m.protocol, 'HTTP/1.1', 'protocol';
+	is $m.field('Transfer-Encoding'), 'chunked', 'parsed header';
+	is $m.content, '- four', 'parsed content';
+	ok $m.is-chunked, 'chunked';
+	ok $m.is-text, 'text';
+	nok $m.is-binary, 'not binary data';
+	$m.set-chunked;
+	ok $m.is-chunked, 'chunked after (implicitly) setting chunk size';
+	is $m.chunk-size, 4096, 'default chunk size';
+	is $m.Str, $expected, 'chunked Str';
+	
+	# add-content
+	$m.add-content: "\n- five";
+	is $m.content, "- four\n- five", 'add-content';
+	
+	$expected = join $CRLF,
+		'POST /site HTTP/1.1',          # request line
+		'Content-Type: text/plain',     # header
+		'Transfer-Encoding: chunked',   # header
+		'',     # end of header
+		'4',    # chunk size
+		'- fo', # chunk data
+		'4',    # chunk size
+		"ur\n-",# chunk data
+		'4',    # chunk size
+		' fiv', # chunk data
+		'1',    # final content chunk size
+		'e',    # final content chunk data
+		'0',    # last chunk
+		$CRLF,  # end of chunked body
+	; # FIXME : does not test: trailer, chunk extension, binary
+	$m.set-chunked: 4;
+	is $m.chunk-size, 4, 'chunk size set';
+	is $m.Str, $expected, 'chunked Str with multiple chunks';
+	
+	# switch to non-chunked; use Content-Length
+	# $m.remove-field: 'Transfer-Encoding';
+	$m.set-chunked: 0;
+	
+	$expected = join $CRLF,
+		'POST /site HTTP/1.1',          # request line
+		'Content-Type: text/plain',     # header
+		'Content-Length: 13',           # header
+		'',                             # end of header
+		"- four\n- five",                    # content
+	; # FIXME : does not test: trailer, chunk extension, binary
+	is $m.Str, $expected, 'non-chunked Str';
+}, 'chunked request';
 
-my Str:D $expected = join $CRLF,
-	'POST site HTTP/1.1',           # request line
-	'Content-Type: text/plain',     # header
-	'Transfer-Encoding: chunked',   # header
-	'',     # end of header
-	'4',    # chunk size
-	'four', # chunk data
-	'',     # end of chunk
-	'0',    # last chunk
-	$CRLF,  # end of chunk body
-; # FIXME : does not test: trailer, chunk extension
-my $m = HTTP::Message.new.parse: $expected;
 
-isa-ok $m, HTTP::Request, 'detected correct message type';
-is $m.protocol, 'HTTP/1.1', 'protocol';
-is $m.field('Transfer-Encoding'), 'chunked', 'parsed header';
-is $m.content, 'four', 'parsed content';
-ok $m.is-chunked, 'chunked';
-ok $m.is-text, 'text';
-nok $m.is-binary, 'not binary data';
-is $m.Str($CRLF), $expected, 'chunked Str';
 
-# switch to non-chunked; use Content-Length
-$m.remove-field: 'Transfer-Encoding';
-
-# add-content
-$m.add-content: '-five';
-is $m.content, 'four-five', 'add-content';
-
-$expected = join $CRLF,
-	'POST site HTTP/1.1',           # request line
-	'Content-Length: 9',            # header
-	'Content-Type: text/plain',     # header
-	'',                             # end of header
-	'four-five',                    # content
-; # FIXME : does not test: trailer, chunk extension
-is $m.Str(), $expected, 'non-chunked Str';
+subtest {
+	plan 5;
+	# parse
+	my Str:D $to_parse = "HTTP/1.1 200 OK\r\n"
+	          ~ "Content-Length: 3\r\n"
+	          ~ "\r\n"
+	          ~ "a\nb";
+	my HTTP::Response:D $m2 = HTTP::Response.new.parse($to_parse);
+	nok $m2.is-chunked, 'not chunked';
+	ok $m2.is-text, 'text';
+	nok $m2.is-binary, 'not binary';
+	is $m2.field('Content-Length'), '3', 'Content-Length';
+	is $m2.Str, $to_parse, 'non-chunked Str';
+}, 'non-chunked response';
 
 # vim: expandtab shiftwidth=4

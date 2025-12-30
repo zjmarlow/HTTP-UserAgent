@@ -6,6 +6,7 @@ use Encode;
 
 has HTTP::Header $.header = HTTP::Header.new;
 has $.content is rw;
+has Int:D $.chunk-size is rw = 4096;
 
 has $.protocol is rw = 'HTTP/1.1';
 
@@ -103,16 +104,43 @@ method is-text(--> Bool:D) {
 
 method is-binary(--> Bool:D) { !self.is-text }
 
+# TODO : proposed method to set request to chunked and specify the chunk size
+# TODO : how to keep synced with Transfer-Encoding if user adds chunked there ?
+# TODO : specify in UserAgent ?
+# set size 0 for non-chunked
+method set-chunked(Int:D $size = 4096) {
+	if $size {
+		$!chunk-size = $size;
+		self.push-field: Transfer-Encoding => 'chunked'
+			unless self.is-chunked;
+	}
+	else {
+		# make non-chunked
+		$!chunk-size = 0;
+		if self.is-chunked {
+			my Str $te = .Str with self.field: 'Transfer-Encoding';
+			$te ~~ s/[\s*\,\s*]?chunked\s*$//;
+			$te .=trim;
+			if $te {
+				self.field: 'Transfer-Encoding', $te;
+			}
+			else {
+				self.remove-field: 'Transfer-Encoding';
+			}
+		}
+	}
+}
+
 method is-chunked(--> Bool:D) {
 # 	multiple transfer-codings can be listed; chunked should be last
 # 	https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
 # 	https://datatracker.ietf.org/doc/html/rfc7230#section-4
 	
 	# TODO : uncomment after confirming testcase
-#     my $enc = self.field('Transfer-Encoding');
-#     $enc and $enc.trim.lc.ends-with: 'chunked'
-	# TODO : remove after implementing
-	...
+    my $enc = self.field('Transfer-Encoding');
+    so $enc and $enc.Str.trim.lc.ends-with: 'chunked'
+# 	# TODO : remove after implementing
+# 	...
 }
 
 method content-encoding() {
@@ -170,7 +198,6 @@ method decoded-content(:$bin) {
 
     $decoded_content
 }
-
 multi method field(Str $f) {
     $.header.field($f)
 }
@@ -203,7 +230,8 @@ method parse($raw_message) {
     else {               # is a response
         $.protocol = $first;
     }
-
+	
+	my Bool:D $tec = False;
     loop {
         last until @lines;
 
@@ -211,12 +239,21 @@ method parse($raw_message) {
         if $line {
             my ($k, $v) = $line.split(/\:\s*/, 2);
             if $k and $v {
+                $tec = True if $k eq 'Transfer-Encoding'
+                    and $v.trim.lc.ends-with: 'chunked';
                 if $.header.field($k) {
                     $.header.push-field: |($k => $v.split(',')>>.trim);
                 } else {
                     $.header.field: |($k => $v.split(',')>>.trim);
                 }
             }
+        } elsif $tec {
+            # chunked, add zero-length Str to end as size 0 chunk
+            @lines.push: '' if +@lines % 2;
+            $!content = join '',
+                grep *,
+                @lines.map: -> $s, $d { $s ~~ /^\d/ ?? $d !! '' };
+            last;
         } else {
             $.content = @lines.grep({ $_ }).join("\n");
             last;
@@ -226,8 +263,39 @@ method parse($raw_message) {
     self
 }
 
+# proposed method for partitioning into chunks
+method chunked-content {
+	# TODO : how to handle call when non-chunked ?
+	return unless self.is-chunked and $!chunk-size;
+	# TODO : handle binary
+	unless self.is-binary {
+		# TODO : consider encoding ?
+		my Str:D @c = $!content.comb: $!chunk-size;
+		my Str:D $s = join $CRLF, '0', $CRLF; # last chunk
+		given @c.elems {
+			when 0 {
+				# just last chunk, nothing to do
+			}
+			when 1..* {
+				$s = join $CRLF,
+						@c[*-1].chars.base(16),
+						@c[*-1],
+						$s;
+				proceed;
+			}
+			when 2..* {
+				my Str $cs = $!chunk-size.base: 16;
+				$s = join $CRLF, ( ( $cs xx * ) Z @c[0..*-2] ).flat, $s;
+			}
+		}
+		$s;
+	}
+}
+
 method Str($eol = "\n", :$debug, Bool :$bin) {
     my constant $max_size = 300;
+    self.field(Content-Length => $!content.encode.bytes.Str)
+        unless self.is-chunked;
     my $s = $.header.Str($eol);
     $s ~= $eol if $.content;
     
@@ -238,16 +306,10 @@ method Str($eol = "\n", :$debug, Bool :$bin) {
         # https://datatracker.ietf.org/doc/html/rfc2616#section-7.2
         # https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
         
-        # TODO : replace following line with code following it
-        $s ~=  $.content ~ $eol if $.content and !$debug;
+#         # TODO : replace following line with code following it
+#         $s ~=  $.content ~ $eol if $.content and !$debug;
         # TODO : uncomment following code for final implementation
-#         if self.is-chunked {
-#             $s ~= $.content ~ $eol;
-#         }
-#         else {
-#             $s ~= $.content;
-#             self.header.field(Content-Length => self.content.encode.bytes.Str);
-#         }
+        $s ~= self.is-chunked ?? self.chunked-content !! $!content;
     }
     if $.content and $debug {
         if $bin || self.is-binary {
