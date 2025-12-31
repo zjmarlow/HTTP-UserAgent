@@ -278,7 +278,6 @@ method get-response(HTTP::Request $request, Connection $conn, Bool :$bin --> HTT
     # Header can be longer than one chunk
     while my $t = $conn.recv( :bin ) {
         $first-chunk ~= $t;
-say 'UserAgent 279 first chunk ', $t.decode: 'iso-8859-1';
         # Find the header/body separator in the chunk, which means
         # we can parse the header seperately and are  able to figure
         # out the correct encoding of the body.
@@ -298,16 +297,12 @@ say 'UserAgent 279 first chunk ', $t.decode: 'iso-8859-1';
         # didn't send it we're stuffed anyway
         $first-chunk;
     }
-say 'HEADER CHUNK ', $header-chunk;
-say 'response with header chunk UserAgent 300';
     my HTTP::Response $response = HTTP::Response.new($header-chunk);
     $response.request = $request;
-say 'request set UserAgent 303';
     if $response.has-content {
         if !$msg-body-pos.defined {
             X::HTTP::Internal.new(rc => 500, reason => "server returned no data").throw;
         }
-say 'msg-body-pos check UserAgent 308';
 
         my $content = $first-chunk.subbuf($msg-body-pos);
         # Turn the inner exceptions to ours
@@ -320,15 +315,12 @@ say 'msg-body-pos check UserAgent 308';
         # We also need to handle 'Transfer-Encoding: chunked', which means
         # that we request more chunks and assemble the response body.
         if $response.is-chunked {
-say 'getting chunked content UserAgent 321';
             $content = self.get-chunked-content($conn, $content);
         }
         elsif $response.content-length -> $content-length is copy {
-say 'getting content by length UserAgent 325';
             $content = self.get-content($conn, $content, $content-length);
         }
         else {
-say 'getting content fallback UserAgent 329';
             $content = self.get-content($conn, $content);
         }
 
