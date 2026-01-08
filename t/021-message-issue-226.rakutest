@@ -1,0 +1,106 @@
+use Test;
+use HTTP::Request;
+use HTTP::Response;
+
+plan 3;
+
+my constant $CRLF = "\r\n";
+
+# construct request - move to request 042-request-issue-226.rakutest
+# my $m = HTTP::Message.new:
+# 		'four',
+# 		Content-Type => 'text/plain',
+# 		Transfer-Encoding => 'chunked'
+# 		;
+subtest {
+	plan 8;
+	my Str:D $to-parse = join $CRLF,
+		'POST /site HTTP/1.1',          # request line
+		'Content-Type: text/plain',     # header
+		'Transfer-Encoding: chunked',   # header
+		'',         # end of header
+		'6',        # chunk size
+		'- four',   # chunk data
+		'0',        # last chunk
+		$CRLF,      # end of chunk body
+	; # FIXME : does not test: trailer, chunk extension, binary
+	my HTTP::Request:D $m = HTTP::Request.new.parse: $to-parse;
+	
+	is $m.protocol, 'HTTP/1.1', 'protocol';
+	is $m.field('Transfer-Encoding'), 'chunked', 'parsed header';
+	is $m.content, '- four', 'parsed content';
+	ok $m.is-text, 'text';
+	nok $m.is-binary, 'not binary data';
+	
+	$m.remove-field: 'Transfer-Encoding';
+	
+	my Str:D $expected = join $CRLF,
+        'POST /site HTTP/1.1',          # request line
+        'Content-Type: text/plain',     # header
+        'Content-Length: 6',   # header
+        '',         # end of header
+        '- four'    # chunk data
+    ;
+	
+	is $m.Str, $expected, 'Str';
+	
+	# add-content
+	$m.add-content: "\n- five";
+	is $m.content, "- four\n- five", 'add-content';
+	
+	$expected = join $CRLF,
+		'POST /site HTTP/1.1',          # request line
+		'Content-Type: text/plain',     # header
+		'Content-Length: 13',           # header
+		'',                             # end of header
+		"- four\n- five",                    # content
+	; # FIXME : does not test: trailer, chunk extension, binary
+	is $m.Str, $expected, 'non-chunked Str';
+}, 'chunked request';
+
+
+
+subtest {
+	plan 4;
+	# parse
+	my Str:D $to_parse = "HTTP/1.1 200 OK\r\n"
+	          ~ "Content-Length: 3\r\n"
+	          ~ "\r\n"
+	          ~ "a\nb";
+	my HTTP::Response:D $m2 = HTTP::Response.new.parse($to_parse);
+	ok $m2.is-text, 'text';
+	nok $m2.is-binary, 'not binary';
+	is $m2.field('Content-Length'), '3', 'Content-Length';
+	is $m2.Str, $to_parse, 'non-chunked Str';
+}, 'parse non-chunked response';
+
+
+
+subtest {
+	plan 3;
+	# parse
+	my Str:D $to_parse = "HTTP/1.1 200 OK\r\n"
+	          ~ "Transfer-Encoding: chunked\r\n"
+	          ~ "\r\n"
+	          ~ "3\r\n"
+	          ~ "a\nb\r\n"
+	          ~ "0\r\n"
+	          ~ "\r\n"
+	          ;
+	my HTTP::Response:D $m2 = HTTP::Response.new.parse($to_parse);
+	ok $m2.is-text, 'text';
+	nok $m2.is-binary, 'not binary';
+	
+	$m2.remove-field: 'Transfer-Encoding';
+	
+	my Str:D $expected = join $CRLF,
+        'HTTP/1.1 200 OK',          # request line
+        'Content-Length: 3',   # header
+        '',         # end of header
+        "a\nb",     # chunk data
+    ;
+	
+	is $m2.Str, $expected, 'Str';
+}, 'parse chunked response';
+
+# vim: expandtab shiftwidth=4

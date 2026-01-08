@@ -23,7 +23,9 @@ role Connection {
             self.print($request.Str(:bin));
             self.write($request.content);
         }
-        else {
+        elsif $request.method.Str eq 'POST' | 'PUT' {
+            self.print($request.Str);
+        } else {
             self.print($request.Str ~ "\r\n");
         }
     }

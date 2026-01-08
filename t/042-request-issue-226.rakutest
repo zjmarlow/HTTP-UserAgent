@@ -1,0 +1,27 @@
+use Test;
+use URI;
+use HTTP::Request;
+
+plan 1;
+
+my constant $CRLF = "\r\n";
+
+my Str:D $host  = 'dne.site';
+my Str:D $resource = 'resource';
+my $url = "http://$host/$resource";
+
+my Str:D $expected = join $CRLF,
+    "POST /$resource HTTP/1.1",                 # request line
+    "Host: $host",                              # header
+    'Content-Length: 13',                       # header
+    '',                 # end of header
+    "- four\n- five",   # content
+; # FIXME : does not test: trailer, chunk extension, binary
+
+my HTTP::Request $r =
+    HTTP::Request.new:
+            POST => $url;
+$r.add-content: "- four\n- five";
+is $r.Str, $expected, 'build non-chunked post';
+
+# vim: expandtab shiftwidth=4

@@ -103,6 +103,18 @@ method is-text(--> Bool:D) {
 
 method is-binary(--> Bool:D) { !self.is-text }
 
+method is-chunked(--> Bool:D) {
+# 	multiple transfer-codings can be listed; chunked should be last
+# 	https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
+# 	https://datatracker.ietf.org/doc/html/rfc7230#section-4
+	
+	# TODO : uncomment after confirming testcase
+    my $enc = self.field('Transfer-Encoding');
+    so $enc and $enc.Str.trim.lc.ends-with: 'chunked'
+# 	# TODO : remove after implementing
+# 	...
+}
+
 method content-encoding() {
     $!header.field('Content-Encoding');
 }
@@ -191,7 +203,8 @@ method parse($raw_message) {
     else {               # is a response
         $.protocol = $first;
     }
-
+	
+	my Bool:D $tec = False;
     loop {
         last until @lines;
 
@@ -199,12 +212,21 @@ method parse($raw_message) {
         if $line {
             my ($k, $v) = $line.split(/\:\s*/, 2);
             if $k and $v {
+                $tec = True if $k eq 'Transfer-Encoding'
+                    and $v.trim.lc.ends-with: 'chunked';
                 if $.header.field($k) {
                     $.header.push-field: |($k => $v.split(',')>>.trim);
                 } else {
                     $.header.field: |($k => $v.split(',')>>.trim);
                 }
             }
+        } elsif $tec {
+            # chunked, add zero-length Str to end as size 0 chunk
+            @lines.push: '' if +@lines % 2;
+            $!content = join '',
+                grep *,
+                @lines.map: -> $s, $d { $s ~~ /^\d/ ?? $d !! '' };
+            last;
         } else {
             $.content = @lines.grep({ $_ }).join("\n");
             last;
@@ -216,12 +238,25 @@ method parse($raw_message) {
 
 method Str($eol = "\n", :$debug, Bool :$bin) {
     my constant $max_size = 300;
+    # TODO : reference relevant section of relevant RFC
+    # TODO : need to consider Str vs Buf length ?
+    self.field(Content-Length => ( $!content.?encode or $!content ).bytes.Str)
+        if $!content and not self.field: 'Transfer-Encoding';
     my $s = $.header.Str($eol);
     $s ~= $eol if $.content;
     
     # The :bin will be passed from the H::UA
     if not $bin {
-        $s ~=  $.content ~ $eol if $.content and !$debug;
+        # do not append eol unless chunked
+        # https://datatracker.ietf.org/doc/html/rfc2616#section-4.3
+        # https://datatracker.ietf.org/doc/html/rfc2616#section-7.2
+        # https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
+        
+#         # TODO : replace following line with code following it
+#         $s ~=  $.content ~ $eol if $.content and !$debug;
+        # TODO : uncomment following code for final implementation
+        $s ~= self.is-chunked ?? $!content !! $!content
+            if $!content;
     }
     if $.content and $debug {
         if $bin || self.is-binary {

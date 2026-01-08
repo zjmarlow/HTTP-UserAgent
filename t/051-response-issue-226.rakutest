@@ -1,0 +1,47 @@
+use Test;
+use HTTP::Response;
+
+plan 1;
+
+my constant $CRLF = "\r\n";
+
+# subtest {
+# 	plan 4;
+# 	my $r = HTTP::Response.new;
+# 	my Str:D $expected = join $CRLF,
+# 		'HTTP/1.1 200 OK',              # status line
+# 		'Content-Type: text/plain',     # header
+# 	    'Transfer-Encoding: chunked',   # header
+# 	    '',         # end header
+# 	    '7',        # chunk size
+# 	    'content',  # chunk data
+# 	    '0',        # last chunk
+# 	    $CRLF       # end chunk body
+# 		;
+# 	$r.field: Content-Type => 'text/plain', Transfer-Encoding => 'chunked';
+# 	$r.add-content: 'content';
+# 	ok $r.is-text, 'is text';
+# 	nok $r.is-binary, 'not binary';
+# 	is $r.content, 'content', 'content';
+# 	is $r.Str, $expected, 'Str';
+# }, 'build chunked Str';
+
+subtest {
+	plan 4;
+	my $r = HTTP::Response.new;
+	my Str:D $expected = join $CRLF,
+		'HTTP/1.1 200 OK',              # status line
+	    'Content-Length: 7',            # header
+		'Content-Type: text/plain',     # header
+	    '',         # end header
+	    'content',  # content
+		;
+	$r.field: Content-Type => 'text/plain', Content-Length => '7';
+	$r.add-content: 'content';
+	ok $r.is-text, 'is text';
+	nok $r.is-binary, 'not binary';
+	is $r.content, 'content', 'content';
+	is $r.Str, $expected, 'Str';
+}, 'build non-chunked Str';
+
+# vim: expandtab shiftwidth=4
