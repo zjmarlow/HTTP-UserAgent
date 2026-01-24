@@ -1,8 +1,8 @@
 unit class HTTP::Cookies;
 
 use HTTP::Cookie;
-use HTTP::Response:auth<zef:raku-community-modules>;
-use HTTP::Request:auth<zef:raku-community-modules>;
+use HTTP::Response;
+use HTTP::Request;
 use DateTime::Parse;
 
 has @.cookies;
@@ -44,12 +44,12 @@ my class HTTP::Cookies::Actions {
     }
 }
 
-method extract-cookies(HTTP::Response $response) {
+method extract-cookies(HTTP::Response-Lenient $response) {
     self.set-cookie($_) for $response.field('Set-Cookie').grep({ $_.defined }).map({ "Set-Cookie: $_"  }).flat;
     self.save if $.autosave;
 }
 
-method add-cookie-header(HTTP::Request $request) {
+method add-cookie-header(HTTP::Request-Lenient $request) {
     for @.cookies -> $cookie {
         # TODO this check sucks, eq is not the right (should probably use uri)
         #next if $cookie.domain.defined

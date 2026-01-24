@@ -18,8 +18,8 @@ my Str:D $expected = join $CRLF,
     "- four\n- five",   # content
 ; # FIXME : does not test: trailer, chunk extension, binary
 
-my HTTP::Request $r =
-    HTTP::Request.new:
+my HTTP::Request-Strict $r =
+    HTTP::Request-Strict.new:
             POST => $url;
 $r.add-content: "- four\n- five";
 is $r.Str, $expected, 'build non-chunked post';

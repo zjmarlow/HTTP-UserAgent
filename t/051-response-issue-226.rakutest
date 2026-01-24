@@ -28,7 +28,7 @@ my constant $CRLF = "\r\n";
 
 subtest {
 	plan 4;
-	my $r = HTTP::Response.new;
+	my $r = HTTP::Response-Strict.new;
 	my Str:D $expected = join $CRLF,
 		'HTTP/1.1 200 OK',              # status line
 	    'Content-Length: 7',            # header
