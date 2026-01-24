@@ -8,8 +8,9 @@ unit class HTTP::Response is HTTP::Message;
 has $.status-line is rw;
 has $.code is rw;
 has HTTP::Request $.request is rw;
+has Bool $.strict is rw;
 
-my $CRLF = "\r\n";
+my constant $CRLF = "\x[0D]\x[0A]";
 
 submethod BUILD(:$!code) {
     $!status-line = self.set-code($!code);
@@ -18,21 +19,33 @@ submethod BUILD(:$!code) {
 proto method new(|) {*}
 
 # This candidate makes it easier to test weird responses
-multi method new(Blob:D $header-chunk) {
+multi method new(Blob:D $header-chunk, Bool $strict = False) {
     # See https://tools.ietf.org/html/rfc7230#section-3.2.4
-    my ($rl, $header) = $header-chunk.decode('ISO-8859-1').split(/\r?\n/, 2);
+    my ($rl, $header);
+    if $strict {
+        ($rl, $header) = $header-chunk.decode('ISO-8859-1').split($CRLF, 2);
+    } else {
+        ($rl, $header) = $header-chunk.decode('ISO-8859-1').split(/\r?\n/, 2);
+    }
     X::HTTP::NoResponse.new.throw unless $rl;
 
     my $code = (try $rl.split(' ')[1].Int) // 500;
-    my $response = self.new($code);
-    $response.header.parse(.subst(/"\r"?"\n"$$/, '')) with $header;
+    my $response = self.new($code, $strict);
+    with $header {
+        .=subst: /"\r"?"\n"$$/, '' unless $strict;
+        $response.header.parse: $header, $strict;
+    }
 
     $response
 }
 
 multi method new(Int:D $code = 200, *%fields) {
-    my $header = HTTP::Header.new(|%fields);
-    self.bless(:$code, :$header);
+    self.new: $code, False, |%fields;
+}
+
+multi method new(Int:D $code, Bool $strict, *%fields) {
+    my $header = HTTP::Header.new($strict, |%fields);
+    self.bless(:$code, :$header, :$strict);
 }
 
 method content-length(--> Int) {
@@ -65,7 +78,8 @@ method set-code(Int:D $code) {
     $!status-line = $code ~ " " ~ get_http_status_msg($code);
 }
 
-method next-request(--> HTTP::Request:D) {
+method next-request(Bool $strict is copy = False --> HTTP::Request:D) {
+    $strict ||= $!strict;
     my HTTP::Request $new-request;
 
     my $location = ~self.header.field('Location').values;
@@ -83,7 +97,7 @@ method next-request(--> HTTP::Request:D) {
 
         my %args = $method => $location;
 
-        $new-request = HTTP::Request.new(|%args);
+        $new-request = HTTP::Request.new($strict, |%args);
 
         unless ~$new-request.field('Host').values {
             my $hh = ~$!request.field('Host').values;
@@ -97,9 +111,10 @@ method next-request(--> HTTP::Request:D) {
     $new-request
 }
 
-method Str(:$debug) {
+method Str(Bool $strict is copy = False, :$debug) {
+    $strict ||= $!strict;
     my $s = $.protocol ~ " " ~ $!status-line;
-    $s ~= $CRLF ~ callwith($CRLF, :debug($debug));
+    $s ~ $CRLF ~ callwith $CRLF, $strict, :$debug;
 }
 
 # vim: expandtab shiftwidth=4

@@ -30,7 +30,8 @@
     "HTTP::Response": "lib/HTTP/Response.rakumod",
     "HTTP::UserAgent": "lib/HTTP/UserAgent.rakumod",
     "HTTP::UserAgent::Common": "lib/HTTP/UserAgent/Common.rakumod",
-    "HTTP::UserAgent::Exception": "lib/HTTP/UserAgent/Exception.rakumod"
+    "HTTP::UserAgent::Exception": "lib/HTTP/UserAgent/Exception.rakumod",
+    "HTTP::Header::ETag": "lib/HTTP/Header/ETag.rakumod"
   },
   "raku": "6.*",
   "resources": [

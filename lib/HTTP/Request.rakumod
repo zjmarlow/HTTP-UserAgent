@@ -17,13 +17,15 @@ has Str $.host is rw;
 has Int $.port is rw;
 has Str $.scheme is rw;
 
-my $CRLF = "\r\n";
+has Bool $.strict is rw;
+
+my constant $CRLF = "\x[0D]\x[0A]";
 
 my $HRC_DEBUG = %*ENV<HRC_DEBUG>.Bool;
 
 proto method new(|) {*}
 
-multi method new(Bool :$bin, *%args) {
+multi method new(Bool $strict = False, Bool :$bin, *%args) {
 
     if %args {
         my ($method, $url, $file, %fields, $uri);
@@ -37,23 +39,21 @@ multi method new(Bool :$bin, *%args) {
             }
         }
 
-        my $header = HTTP::Header.new(|%fields);
-        self.new($method // 'GET', $uri, $header, :$bin);
+        my $header = HTTP::Header.new($strict, |%fields);
+        self.new($method // 'GET', $uri, $header, $strict, :$bin);
     }
     else {
-        self.bless
+        self.bless: :$strict, :$bin;
     }
 }
 
-multi method new() { self.bless }
-
-multi method new(RequestMethod $method, URI $uri, HTTP::Header $header, Bool :$bin) {
+multi method new(RequestMethod $method, URI $uri, HTTP::Header $header, Bool $strict = False, Bool :$bin) {
     my $url = $uri.grammar.parse_result.orig;
     my $file = $uri.path_query || '/';
 
     $header.field(Host => get-host-value($uri)) without $header.field('Host');
 
-    self.bless(:$method, :$url, :$header, :$file, :$uri, binary => $bin)
+    self.bless(:$method, :$url, :$header, :$file, :$uri, binary => $bin, :$strict)
 }
 
 sub get-host-value(URI $uri --> Str) {
@@ -266,13 +266,15 @@ method make-boundary(int $size=10) {
 }
 
 
-method Str (:$debug, Bool :$bin) {
+method Str (Bool $strict is copy = False, :$debug, Bool :$bin) {
+    $strict ||= $!strict;
     $.file = '/' ~ $.file unless $.file.starts-with: '/';
     my $s = "$.method $.file $.protocol";
-    $s ~= $CRLF ~ callwith($CRLF, :$debug, :$bin);
+    $s ~ $CRLF ~ callwith $CRLF, $strict, :$debug, :$bin;
 }
 
-method parse($raw_request) {
+method parse($raw_request, Bool $strict is copy = False) {
+    $strict ||= $!strict;
     my @lines = $raw_request.split($CRLF);
     ($.method, $.file) = @lines.shift.split(' ');
 

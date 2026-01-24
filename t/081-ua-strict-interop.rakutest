@@ -1,0 +1,67 @@
+use lib <t/lib>;
+
+use Test;
+use HTTP::UserAgent;
+use HTTP::Request;
+use Test::Util::ServerPort;
+use TestServer;
+
+my constant $CRLF = "\x[0D]\x[0A]";
+my constant $STRICT = True;
+
+plan 3;
+
+my $port = get-unused-port;
+
+%*ENV<NO_PROXY> = 'localhost';
+
+my $test-server = test-full-message my $done-promise = Promise.new, :$port;
+
+say 'using port ', $port;
+
+subtest {
+	plan 2;
+	my $uas = HTTP::UserAgent.new: $STRICT;
+	my $rs = $uas.post: "http://localhost:$port/POST", { hello => 'world' };
+	my ( $eol, $lok ) = $rs.content.split: "\x0d";
+	is $eol, 'F', 'no extra eol';
+	is $lok, 'T', 'length matches';
+}, 'UA:strict passes strict to method calls not requesting :strict explicitly';
+
+subtest {
+	plan 4;
+	my $ual = HTTP::UserAgent.new: not $STRICT;
+	my $rl = $ual.post: "http://localhost:$port/POST", { hello => 'world' };
+	my ( $eol, $lok ) = $rl.content.split: "\x0d";
+	is $eol, 'T', 'UA:!strict sends extra eol';
+	is $lok, 'F', 'UA:!strict sends mismatched lengths';
+	my $rq = HTTP::Request.new: $STRICT;
+	$rq.set-method: 'POST';
+	$rq.uri: "http://localhost:$port/ualenientmsgstrict";
+	$rq.add-content: 'hello=world';
+	my $rs = $ual.request: $rq, $STRICT;
+	( $eol, $lok ) = $rs.content.split: "\x0d";
+	is $eol, 'F', 'UA:!strict with Message:strict - no extra eol';
+	is $lok, 'T', 'UA:!strict with Message:strict - length matches';
+}, 'UA:!strict can use Message:strict';
+
+subtest {
+	plan 4;
+	my $uas = HTTP::UserAgent.new: $STRICT;
+	my $rs = $uas.post: "http://localhost:$port/POST", { hello => 'world' };
+	my ( $eol, $lok ) = $rs.content.split: "\x0d";
+	is $eol, 'F', 'no extra eol';
+	is $lok, 'T', 'length matches';
+	my $rq = HTTP::Request.new: not $STRICT;
+	$rq.set-method: 'POST';
+	$rq.uri: "http://localhost:$port/uastrictmsglenient";
+	$rq.add-content: 'hello=world';
+	$rs = $uas.request: $rq;
+	( $eol, $lok ) = $rs.content.split: "\x0d";
+	is $eol, 'F', 'UA:strict with Message:!strict - no extra eol';
+	is $lok, 'T', 'UA:strict with Message:!strict - length matches';
+}, 'UA:strict is still strict with Message:!strict';
+
+$done-promise.keep: 'shutdown';
+
+# UA:strict with Message:!strict

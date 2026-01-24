@@ -1,9 +1,92 @@
 unit class HTTP::Header;
 
 use HTTP::Header::Field;
+use HTTP::Header::ETag;
 
+my constant $CRLF = "\x[0D]\x[0A]";
+
+has Bool $.strict is rw;
 # headers container
 has @.fields;
+
+grammar Grammar::Strict {
+    token TOP {
+        <message-header>
+    }
+    token message-header {
+        [ <[\t\x[20]]>* <field> <[\t\x[20]]>* \x[0d]\x[0a] ]*
+    }
+    #| includes any VCHAR except delimiters
+    #| https://datatracker.ietf.org/doc/html/rfc9110#name-tokens
+    token token {
+        <[!#$%&'*+\-.^_`|~0..9a..zA..Z]>+
+    }
+    token field {
+        | <etag>
+        | <other-field>
+    }
+    token other-field {
+        $<field-name>=<token> ':' \s* [ <value> | <quoted-string> ]
+    }
+    token etag {
+        $<field-name>=[<[eE]><[tT]><[aA]><[gG]>] ':'\s* $<field-value>=[ [(W)'/']? <opaque-tag> ]
+    }
+    token opaque-tag {
+        \" <opaque-content> \"
+    }
+    # visible chars except double quote
+    token opaque-content {
+        <[\x[21]..\x[FF]]-[\x[22]\x[7F]]>*
+    }
+    token vchars { <[\x[21]..\x[7E]]>+ } # visible ascii
+    token field-vchars { <[\x[21]..\x[FF]]-[\x[7F]]>+ } # visible chars
+    token value {
+        <field-vchars> [ <[\t\x[20]]>* <field-vchars> ]*
+    }
+    token quoted-string {
+        \" <quoted-content> \"
+    }
+    token quoted-content {
+        [<qtd-text> | <quoted-pair>]*
+    }
+    # visible chars plus tab, space, except double quotes and backslash
+    token qtd-text {
+        <[\t\x[20]..\x[FF]]-[\x[22]\x[5C]\x[7F]]>+
+    }
+    # visible chars plus tab, space
+    token quotable-char {
+        <[\t\x[20]..\x[FF]]-[\x[7F]]>
+    }
+    token quoted-pair {
+        \\ <quotable-char>
+    }
+}
+
+class Actions::Strict {
+    method etag ( $/ ) {
+        $*OBJ.field:
+                HTTP::Header::ETag.new:
+                        $<opaque-tag>.made,
+                        weak => $/[0].Bool
+    }
+    method other-field ( $/ ) {
+        my $k = $<field-name>.Str;
+        my @v = $<quoted-string>
+                ?? $<quoted-string>.made
+                !! map *.trim, $<value>.Str.split: ',';
+        if $*OBJ.field: $<field-name> {
+            $*OBJ.push-field: |( $k => @v );
+        } else {
+            $*OBJ.field: |( $k => @v );
+        }
+    }
+    method opaque-tag ( $/ ) {
+        make $<opaque-content>.Str;
+    }
+    method quoted-string ( $/ ) {
+        make $<quoted-content>.Str;
+    }
+}
 
 our grammar HTTP::Header::Grammar {
     token TOP {
@@ -50,12 +133,12 @@ our class HTTP::Header::Actions {
 }
 
 # we want to pass arguments like this: .new(a => 1, b => 2 ...)
-method new(*%fields) {
+method new(Bool $strict = False, *%fields) {
     my @fields = %fields.sort(*.key).map: {
         HTTP::Header::Field.new(:name(.key), :values(.value.list));
     }
 
-    self.bless(:@fields)
+    self.bless(:$strict, :@fields)
 }
 
 proto method field(|) {*}
@@ -78,6 +161,11 @@ multi method field($field) {
     my $field-lc := $field.lc;
     @.fields.first(*.name.lc eq $field-lc)
 }
+
+multi method field ( HTTP::Header::ETag:D $etag ) {
+    @.fields.push: $etag;
+}
+
 
 # initialize fields
 method init-field(*%fields) {
@@ -120,13 +208,24 @@ method clear() {
 }
 
 # get header as string
-method Str($eol = "\n") {
+multi method Str(Str $eol is copy = "\n", Bool $strict is copy = False) {
+    $strict ||= $!strict;
+    $eol = $CRLF if $strict;
     @.fields.map({ "$_.name(): {self.field($_.name)}$eol" }).join
 }
+multi method Str (Bool $strict is copy = False) is default {
+    self.Str: "\n", $strict;
+}
 
-method parse($raw) {
-    my $*OBJ = self;
-    HTTP::Header::Grammar.parse($raw, :actions(HTTP::Header::Actions));
+method parse($raw, Bool $strict is copy = False) {
+    $strict ||= $!strict;
+    if $strict {
+        my $*OBJ = self;
+        Grammar::Strict.parse: $raw, actions => Actions::Strict;
+    } else {
+        my $*OBJ = self;
+        HTTP::Header::Grammar.parse($raw, :actions(HTTP::Header::Actions));
+    }
 }
 
 # vim: expandtab shiftwidth=4
