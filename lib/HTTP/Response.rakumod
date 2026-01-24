@@ -3,11 +3,11 @@ use HTTP::Status;
 use HTTP::Request;
 use HTTP::UserAgent::Exception;
 
-class HTTP::Response-Lenient is HTTP::Message-Lenient {
+class HTTP::Response is HTTP::Message {
 
     has $.status-line is rw;
     has $.code is rw;
-    has HTTP::Request-Lenient $.request is rw;
+    has HTTP::Request $.request is rw;
 
     my $CRLF = "\r\n";
 
@@ -31,7 +31,7 @@ class HTTP::Response-Lenient is HTTP::Message-Lenient {
     }
 
     multi method new(Int:D $code = 200, *%fields) {
-        my $header = HTTP::Header-Lenient.new(|%fields);
+        my $header = HTTP::Header.new(|%fields);
         self.bless(:$code, :$header);
     }
 
@@ -65,8 +65,8 @@ class HTTP::Response-Lenient is HTTP::Message-Lenient {
         $!status-line = $code ~ " " ~ get_http_status_msg($code);
     }
 
-    method next-request(--> HTTP::Request-Lenient:D) {
-        my HTTP::Request-Lenient $new-request;
+    method next-request(--> HTTP::Request:D) {
+        my HTTP::Request $new-request;
 
         my $location = ~self.header.field('Location').values;
 
@@ -83,7 +83,7 @@ class HTTP::Response-Lenient is HTTP::Message-Lenient {
 
             my %args = $method => $location;
 
-            $new-request = HTTP::Request-Lenient.new(|%args);
+            $new-request = HTTP::Request.new(|%args);
 
             unless ~$new-request.field('Host').values {
                 my $hh = ~$!request.field('Host').values;
@@ -103,10 +103,10 @@ class HTTP::Response-Lenient is HTTP::Message-Lenient {
     }
 }
 
-class HTTP::Response-Strict is HTTP::Response-Lenient is HTTP::Message-Strict {
+class HTTP::Response-Strict is HTTP::Response is HTTP::Message-Strict {
     my constant $CRLF = "\x[0D]\x[0A]";
     
-    method next-request(--> HTTP::Request-Lenient:D) {
+    method next-request(--> HTTP::Request:D) {
         my HTTP::Request-Strict $new-request;
 
         my $location = ~self.header.field('Location').values;
@@ -148,7 +148,7 @@ class HTTP::Response-Strict is HTTP::Response-Lenient is HTTP::Message-Strict {
 #     if $strict and $strict eq 'strict' {
 #         OUR::HTTP::Response := HTTP::Response-Strict;
 #     } else {
-#         OUR::HTTP::Response := HTTP::Response-Lenient;
+#         OUR::HTTP::Response := HTTP::Response;
 #     }
 #     Map.new;
 # }

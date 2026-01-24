@@ -44,12 +44,12 @@ my class HTTP::Cookies::Actions {
     }
 }
 
-method extract-cookies(HTTP::Response-Lenient $response) {
+method extract-cookies(HTTP::Response $response) {
     self.set-cookie($_) for $response.field('Set-Cookie').grep({ $_.defined }).map({ "Set-Cookie: $_"  }).flat;
     self.save if $.autosave;
 }
 
-method add-cookie-header(HTTP::Request-Lenient $request) {
+method add-cookie-header(HTTP::Request $request) {
     for @.cookies -> $cookie {
         # TODO this check sucks, eq is not the right (should probably use uri)
         #next if $cookie.domain.defined

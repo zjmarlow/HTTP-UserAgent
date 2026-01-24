@@ -6,7 +6,7 @@ use MIME::Base64;
 
 subset RequestMethod of Str where any(<GET POST HEAD PUT DELETE PATCH>);
 
-class HTTP::Request-Lenient is HTTP::Message-Lenient {
+class HTTP::Request is HTTP::Message {
     
     has RequestMethod $.method is rw;
     has $.url is rw;
@@ -37,7 +37,7 @@ class HTTP::Request-Lenient is HTTP::Message-Lenient {
                 }
             }
 
-            my $header = HTTP::Header-Lenient.new(|%fields);
+            my $header = HTTP::Header.new(|%fields);
             self.new($method // 'GET', $uri, $header, :$bin);
         }
         else {
@@ -47,7 +47,7 @@ class HTTP::Request-Lenient is HTTP::Message-Lenient {
 
     multi method new() { self.bless }
 
-    multi method new(RequestMethod $method, URI $uri, HTTP::Header-Lenient $header, Bool :$bin) {
+    multi method new(RequestMethod $method, URI $uri, HTTP::Header $header, Bool :$bin) {
         my $url = $uri.grammar.parse_result.orig;
         my $file = $uri.path_query || '/';
 
@@ -292,7 +292,7 @@ class HTTP::Request-Lenient is HTTP::Message-Lenient {
     }
 }
 
-class HTTP::Request-Strict is HTTP::Message-Strict is HTTP::Request-Lenient {
+class HTTP::Request-Strict is HTTP::Message-Strict is HTTP::Request {
     my constant $CRLF = "\x[0D]\x[0A]";
     
     
@@ -368,7 +368,7 @@ class HTTP::Request-Strict is HTTP::Message-Strict is HTTP::Request-Lenient {
 #     if $strict and $strict eq 'strict' {
 #         OUR::HTTP::Request := HTTP::Request-Strict;
 #     } else {
-#         OUR::HTTP::Request := HTTP::Request-Lenient;
+#         OUR::HTTP::Request := HTTP::Request;
 #     }
 #     Map.new;
 # }

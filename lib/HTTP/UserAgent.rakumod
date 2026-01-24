@@ -12,7 +12,7 @@ use URI;
 use File::Temp;
 use MIME::Base64;
 
-class HTTP::UserAgent-Lenient {
+class HTTP::UserAgent {
     # use HTTP::Response:auth<zef:raku-community-modules>;
     # use HTTP::Request:auth<zef:raku-community-modules>;
     # use HTTP::Cookies;
@@ -30,7 +30,7 @@ class HTTP::UserAgent-Lenient {
     # placeholder role to make signatures nicer
     # and enable greater abstraction
     role Connection {
-        method send-request(HTTP::Request-Lenient $request ) {
+        method send-request(HTTP::Request $request ) {
             $request.field(Connection => 'close') unless $request.field('Connection');
             if $request.binary {
                 self.print($request.Str(:bin));
@@ -112,7 +112,7 @@ class HTTP::UserAgent-Lenient {
     proto method get(|) {*}
 
     multi method get(URI $uri is copy, Bool :$bin,  *%header ) {
-        my $request  = HTTP::Request-Lenient.new(GET => $uri, |%header);
+        my $request  = HTTP::Request.new(GET => $uri, |%header);
         self.request($request, :$bin)
     }
 
@@ -123,7 +123,7 @@ class HTTP::UserAgent-Lenient {
     proto method post(|) {*}
 
     multi method post(URI $uri is copy, %form , Bool :$bin,  *%header) {
-        my $request = HTTP::Request-Lenient.new(POST => $uri, |%header);
+        my $request = HTTP::Request.new(POST => $uri, |%header);
         $request.add-form-data(%form);
         self.request($request, :$bin)
     }
@@ -135,7 +135,7 @@ class HTTP::UserAgent-Lenient {
     proto method put(|) {*}
 
     multi method put(URI $uri is copy, %form , Bool :$bin,  *%header) {
-        my $request = HTTP::Request-Lenient.new(PUT => $uri, |%header);
+        my $request = HTTP::Request.new(PUT => $uri, |%header);
         $request.add-form-data(%form);
         self.request($request, :$bin)
     }
@@ -147,7 +147,7 @@ class HTTP::UserAgent-Lenient {
     proto method delete(|) {*}
 
     multi method delete(URI $uri is copy, Bool :$bin,  *%header ) {
-        my $request  = HTTP::Request-Lenient.new(DELETE => $uri, |%header);
+        my $request  = HTTP::Request.new(DELETE => $uri, |%header);
         self.request($request, :$bin)
     }
 
@@ -155,8 +155,8 @@ class HTTP::UserAgent-Lenient {
         self.delete(URI.new(_clear-url($uri)), :$bin, |%header)
     }
 
-    method request(HTTP::Request-Lenient $request, Bool :$bin --> HTTP::Response-Lenient:D) {
-        my HTTP::Response-Lenient $response;
+    method request(HTTP::Request $request, Bool :$bin --> HTTP::Response:D) {
+        my HTTP::Response $response;
 
         # add cookies to the request
         $request.add-cookies($.cookies);
@@ -275,7 +275,7 @@ class HTTP::UserAgent-Lenient {
         $content
     }
 
-    method get-response(HTTP::Request-Lenient $request, Connection $conn, Bool :$bin --> HTTP::Response-Lenient:D) {
+    method get-response(HTTP::Request $request, Connection $conn, Bool :$bin --> HTTP::Response:D) {
         my Blob[uint8] $first-chunk = Blob[uint8].new;
         my $msg-body-pos;
 
@@ -313,7 +313,7 @@ class HTTP::UserAgent-Lenient {
         }
 
 
-        my HTTP::Response-Lenient $response = HTTP::Response-Lenient.new($header-chunk);
+        my HTTP::Response $response = HTTP::Response.new($header-chunk);
         $response.request = $request;
 
         if $response.has-content {
@@ -350,7 +350,7 @@ class HTTP::UserAgent-Lenient {
 
     proto method get-connection(|) {*}
 
-    multi method get-connection(HTTP::Request-Lenient $request --> Connection:D) {
+    multi method get-connection(HTTP::Request $request --> Connection:D) {
         my $host = $request.host;
         my $port = $request.port;
 
@@ -369,7 +369,7 @@ class HTTP::UserAgent-Lenient {
     }
 
     my $https_lock = Lock.new;
-    multi method get-connection(HTTP::Request-Lenient $request, Str $host, Int $port? --> Connection:D) {
+    multi method get-connection(HTTP::Request $request, Str $host, Int $port? --> Connection:D) {
         my $conn;
         if $request.scheme eq 'https' {
             $https_lock.lock;
@@ -393,7 +393,7 @@ class HTTP::UserAgent-Lenient {
 
     has $.http-proxy;
     # want the request to possibly match scheme, no_proxy etc
-    method get-proxy(HTTP::Request-Lenient $request) {
+    method get-proxy(HTTP::Request $request) {
         $!http-proxy //= do if self.is-cgi {
             %*ENV<cgi_http_proxy> || %*ENV<CGI_HTTP_PROXY>;
         }
@@ -423,7 +423,7 @@ class HTTP::UserAgent-Lenient {
 
     proto method use-proxy(|) {*}
 
-    multi method use-proxy(HTTP::Request-Lenient $request --> Bool:D) {
+    multi method use-proxy(HTTP::Request $request --> Bool:D) {
         self.use-proxy($request.host)
     }
 
@@ -448,14 +448,14 @@ class HTTP::UserAgent-Lenient {
         "Basic " ~ MIME::Base64.encode-str($creds, :oneline);
     }
 
-    method setup-auth(HTTP::Request-Lenient $request) {
+    method setup-auth(HTTP::Request $request) {
         # use HTTP Auth
         if self.use-auth($request) {
             $request.field(Authorization => basic-auth-token($!auth_login,$!auth_password));
         }
     }
 
-    method use-auth(HTTP::Request-Lenient $request) {
+    method use-auth(HTTP::Request $request) {
         $!auth_login.defined && $!auth_password.defined;
     }
 
@@ -468,12 +468,12 @@ class HTTP::UserAgent-Lenient {
     }
 
     our sub head(Str $url) is export(:simple) {
-        my $ua = HTTP::UserAgent-Lenient.new(:throw-exceptions);
+        my $ua = HTTP::UserAgent.new(:throw-exceptions);
         $ua.get($url).header.hash<Content-Type Content-Length Last-Modified Expires Server>
     }
 
     our sub getprint(Str $url) is export(:simple) {
-        my $response = HTTP::UserAgent-Lenient.new(:throw-exceptions).get($url);
+        my $response = HTTP::UserAgent.new(:throw-exceptions).get($url);
         print $response.decoded-content;
         $response.code
     }
@@ -489,7 +489,7 @@ class HTTP::UserAgent-Lenient {
     }
 }
 
-class HTTP::UserAgent-Strict is HTTP::UserAgent-Lenient {
+class HTTP::UserAgent-Strict is HTTP::UserAgent {
     constant CRLF = Buf.new(13, 10);
     
     role Connection {
@@ -630,9 +630,9 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent-Lenient {
 
 # sub EXPORT ( $strict? ) {
 #     if $strict and $strict eq 'strict' {
-#         OUR::HTTP::UserAgent := HTTP::UserAgent-Lenient;
+#         OUR::HTTP::UserAgent := HTTP::UserAgent;
 #     } else {
-#         OUR::HTTP::UserAgent := HTTP::UserAgent-Lenient;
+#         OUR::HTTP::UserAgent := HTTP::UserAgent;
 #     }
 #     Map.new;
 # }

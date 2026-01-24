@@ -2,9 +2,9 @@ use HTTP::Header;
 use HTTP::MediaType;
 use Encode;
 
-class HTTP::Message-Lenient {
+class HTTP::Message {
     
-    has HTTP::Header-Lenient $.header; # = HTTP::Header.new;
+    has HTTP::Header $.header = HTTP::Header.new;
     has $.content is rw;
 
     has $.protocol is rw = 'HTTP/1.1';
@@ -17,7 +17,7 @@ class HTTP::Message-Lenient {
     my constant $DELIM = $CRLF x 2;
 
     method new($content?, *%fields) {
-        my $header = HTTP::Header-Lenient.new(|%fields);
+        my $header = HTTP::Header.new(|%fields);
 
         self.bless(:$header, :$content);
     }
@@ -27,7 +27,7 @@ class HTTP::Message-Lenient {
     }
 
     class X::Decoding is Exception {
-        has HTTP::Message-Lenient $.response;
+        has HTTP::Message $.response;
         has Blob $.content;
         method message() {
             "Problem decoding content";
@@ -108,7 +108,7 @@ class HTTP::Message-Lenient {
     #| multiple transfer-codings can be listed; chunked should be last
     #| https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
     #| https://datatracker.ietf.org/doc/html/rfc7230#section-4
-    multi method is-chunked ( HTTP::Header-Lenient $header --> Bool:D ) {
+    multi method is-chunked ( HTTP::Header $header --> Bool:D ) {
         my $enc = $header.field('Transfer-Encoding');
         so $enc and $enc.values.tail.trim.lc.ends-with: 'chunked'
     }
@@ -194,7 +194,6 @@ class HTTP::Message-Lenient {
     }
 
     method parse($raw_message) {
-        say 'LENIENT PARSE';
         my @lines = $raw_message.split(/$CRLF/);
 
         my ($first, $second, $third) = @lines.shift.split(/\s+/);
@@ -254,7 +253,7 @@ class HTTP::Message-Lenient {
 }
 
 
-class HTTP::Message-Strict is HTTP::Message-Lenient {
+class HTTP::Message-Strict is HTTP::Message {
     #| see https://docs.raku.org/language/grammars#Attributes_in_grammars
     my constant $CRLF = "\x[0d]\x[0a]";
     my constant $DELIM = $CRLF x 2;
@@ -338,7 +337,7 @@ class HTTP::Message-Strict is HTTP::Message-Lenient {
 #     if $strict and $strict eq 'strict' {
 #         OUR::HTTP::Message := HTTP::Message-Strict;
 #     } else {
-#         OUR::HTTP::Message := HTTP::Message-Lenient;
+#         OUR::HTTP::Message := HTTP::Message;
 #     }
 #     Map.new;
 # }

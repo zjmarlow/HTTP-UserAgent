@@ -1,6 +1,6 @@
 use HTTP::Header::Field;
 
-class HTTP::Header-Lenient {
+class HTTP::Header {
 
     # headers container
     has @.fields;
@@ -131,7 +131,7 @@ class HTTP::Header-Lenient {
 }
 
 
-class HTTP::Header-Strict is HTTP::Header-Lenient {
+class HTTP::Header-Strict is HTTP::Header {
     use HTTP::Header::ETag;
     
     grammar HTTP::Header-Strict::Grammar {
@@ -227,7 +227,7 @@ class HTTP::Header-Strict is HTTP::Header-Lenient {
 #     if $strict and $strict eq 'strict' {
 #         OUR::HTTP::Header := HTTP::Header-Strict;
 #     } else {
-#         OUR::HTTP::Header := HTTP::Header-Lenient;
+#         OUR::HTTP::Header := HTTP::Header;
 #     }
 #     Map.new;
 # }

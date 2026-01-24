@@ -3,7 +3,7 @@ module HTTP::UserAgent::Exception {
 
     class X::HTTP is Exception {
         has $.rc;
-        has HTTP::Message-Lenient $.response;
+        has HTTP::Message $.response;
     }
 
     class X::HTTP::Internal is Exception {
