@@ -45,7 +45,7 @@ is $r1.url, 'http://test.com:8080', 'uri 3/4';
 is $r1.field('Host'), 'test.com:8080', 'uri 4/4';
 
 # set-method
-throws-like({ $r1.set-method: 'TEST' }, /'expected HTTP::Request::RequestMethod but got Str'/, "rejects wrong method");
+throws-like({ $r1.set-method: 'TEST' }, /'expected RequestMethod but got Str'/, "rejects wrong method");
 lives-ok { $r1.set-method: 'PUT' }, "set method";
 is $r1.method, 'PUT', 'set-method 1/1';
 
