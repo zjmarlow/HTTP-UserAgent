@@ -1,15 +1,6 @@
 use Test;
-# use HTTP::Message 'strict';
-# use HTTP::Request 'strict';
-# use HTTP::Response 'strict';
 
-use HTTP::UA 'strict';
-use HTTP::UserAgent;
-use HTTP::Message;
-use HTTP::Request;
-use HTTP::Response;
-use HTTP::Header;
-# use HTTP::Request;
+use HTTP::UA-Strict;
 
 plan 23;
 

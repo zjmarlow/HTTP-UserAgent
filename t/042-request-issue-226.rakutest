@@ -1,6 +1,7 @@
 use Test;
+
 use URI;
-use HTTP::Request;
+use HTTP::UA-Strict;
 
 plan 1;
 

@@ -1,5 +1,6 @@
 use Test;
-use HTTP::Response;
+
+use HTTP::UA-Strict;
 
 plan 1;
 
