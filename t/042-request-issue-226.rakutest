@@ -120,9 +120,9 @@ subtest {
 
 ###############################################################################
 
-my Str:D $host  = 'dne.site';
+$host  = 'dne.site';
 my Str:D $resource = 'resource';
-my $url = "http://$host/$resource";
+$url = "http://$host/$resource";
 
 my Str:D $expected = join $CRLF,
     "POST /$resource HTTP/1.1",                 # request line
