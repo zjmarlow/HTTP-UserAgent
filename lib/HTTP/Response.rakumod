@@ -35,7 +35,7 @@ multi method new(Int:D $code = 200, *%fields) {
     self.bless(:$code, :$header);
 }
 
-method content-length(--> Int:D) {
+method content-length(--> Int) {
     my $content-length = self.field('Content-Length').values[0];
 
     with $content-length -> $c {
