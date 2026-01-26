@@ -35,7 +35,8 @@
     "HTTP::Message-Strict": "lib/HTTP/UA-Strict.rakumod",
     "HTTP::Request-Strict": "lib/HTTP/UA-Strict.rakumod",
     "HTTP::Response-Strict": "lib/HTTP/UA-Strict.rakumod",
-    "HTTP::Header-Strict": "lib/HTTP/UA-Strict.rakumod"
+    "HTTP::Header-Strict": "lib/HTTP/UA-Strict.rakumod",
+    "HTTP::Header::ETag": "lib/HTTP/Header/ETag.rakumod"
   },
   "raku": "6.*",
   "resources": [
