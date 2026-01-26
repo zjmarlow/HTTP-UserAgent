@@ -160,7 +160,7 @@ class HTTP::Message-Strict is HTTP::Message {
             # https://datatracker.ietf.org/doc/html/rfc2616#section-7.2
             # https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
 			# not supporting chunked Str atm
-            $s = join $CRLF, $s, $.content;
+            $s = join $CRLF, $s, $.content || '';
         }
         if $.content and $debug {
             if $bin || self.is-binary {
@@ -321,6 +321,10 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
         self.request($request, :$bin)
     }
 
+	multi method get(Str $uri is copy, Bool :$bin,  *%header ) {
+		self.get(URI.new(HTTP::UserAgent::_clear-url($uri)), :$bin, |%header)
+	}
+
     proto method post(|) {*}
 
     multi method post(URI $uri is copy, %form , Bool :$bin,  *%header) {
@@ -328,6 +332,10 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
         $request.add-form-data(%form);
         self.request($request, :$bin)
     }
+
+	multi method post(Str $uri is copy, %form, Bool :$bin, *%header ) {
+		self.post(URI.new(HTTP::UserAgent::_clear-url($uri)), %form, |%header)
+	}
 
     proto method put(|) {*}
 
@@ -337,12 +345,20 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
         self.request($request, :$bin)
     }
 
+	multi method put(Str $uri is copy, %form, Bool :$bin, *%header ) {
+		self.put(URI.new(HTTP::UserAgent::_clear-url($uri)), %form, |%header)
+	}
+
     proto method delete(|) {*}
 
     multi method delete(URI $uri is copy, Bool :$bin,  *%header ) {
         my $request  = HTTP::Request-Strict.new(DELETE => $uri, |%header);
         self.request($request, :$bin)
     }
+
+	multi method delete(Str $uri is copy, Bool :$bin,  *%header ) {
+		self.delete(URI.new(HTTP::UserAgent::_clear-url($uri)), :$bin, |%header)
+	}
 
     method request(HTTP::Request-Strict $request, Bool :$bin --> HTTP::Response-Strict:D) {
         my HTTP::Response-Strict $response;

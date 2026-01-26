@@ -467,7 +467,7 @@ our sub getstore(Str $url, Str $file) is export(:simple) {
     $file.IO.spurt: get($url)
 }
 
-sub _clear-url(Str $url is copy) {
+our sub _clear-url(Str $url is copy) {
     $url.starts-with('http://' | 'https://')
       ?? $url
       !! "http://$url"
