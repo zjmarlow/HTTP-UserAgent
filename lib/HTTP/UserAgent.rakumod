@@ -16,7 +16,7 @@ constant CRLF = Buf.new(13, 10);
 
 # placeholder role to make signatures nicer
 # and enable greater abstraction
-role Connection {
+our role Connection {
     method send-request(HTTP::Request $request ) {
         $request.field(Connection => 'close') unless $request.field('Connection');
         if $request.binary {
@@ -43,7 +43,7 @@ has Bool $.throw-exceptions;
 has $.debug;
 has IO::Handle $.debug-handle;
 
-my sub search-header-end(Blob $input) {
+our sub search-header-end(Blob $input) {
     my $i = 0;
     my $input-bytes = $input.bytes;
     while $i+2 <= $input-bytes {

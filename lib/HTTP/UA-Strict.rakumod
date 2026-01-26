@@ -159,7 +159,8 @@ class HTTP::Message-Strict is HTTP::Message {
             # https://datatracker.ietf.org/doc/html/rfc2616#section-4.3
             # https://datatracker.ietf.org/doc/html/rfc2616#section-7.2
             # https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
-            $s = join $CRLF, $s, $.content if $.content;
+			# not supporting chunked Str atm
+            $s = join $CRLF, $s, $.content || '';
         }
         if $.content and $debug {
             if $bin || self.is-binary {
@@ -294,7 +295,7 @@ class HTTP::Response-Strict is HTTP::Response is HTTP::Message-Strict {
 class HTTP::UserAgent-Strict is HTTP::UserAgent {
     constant CRLF = Buf.new(13, 10);
     
-    role Connection {
+    role Connection-Strict does HTTP::UserAgent::Connection {
         method send-request(HTTP::Request-Strict $request ) {
             $request.field(Connection => 'close') unless $request.field('Connection');
             if $request.binary {
@@ -355,7 +356,7 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
         # if auth has been provided add it to the request
         self.setup-auth($request);
         $.debug-handle.say("==>>Send\n" ~ $request.Str(:debug)) if $.debug;
-        my Connection $conn = self.get-connection($request);
+        my Connection-Strict $conn = self.get-connection($request);
 
         if $conn.send-request($request) {
             $response = self.get-response($request, $conn, :$bin);
@@ -394,7 +395,7 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
         $response
     }
     
-    multi method get-connection(HTTP::Request-Strict $request --> Connection:D) {
+    multi method get-connection(HTTP::Request-Strict $request --> Connection-Strict:D) {
         my $host = $request.host;
         my $port = $request.port;
 
@@ -407,13 +408,13 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
             if $proxy_auth.defined {
                 $request.field(Proxy-Authorization => basic-auth-token($proxy_auth));
             }
-            $request.field(Connection => 'close');
+            $request.field(Connection-Strict => 'close');
         }
         self.get-connection($request, $host, $port)
     }
 
     my $https_lock = Lock.new;
-    multi method get-connection(HTTP::Request-Strict $request, Str $host, Int $port? --> Connection:D) {
+    multi method get-connection(HTTP::Request-Strict $request, Str $host, Int $port? --> Connection-Strict:D) {
         my $conn;
         if $request.scheme eq 'https' {
             $https_lock.lock;
@@ -425,7 +426,79 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
         else {
             $conn = IO::Socket::INET.new(:$host, :port($port // 80), :timeout($.timeout));
         }
-        $conn does Connection;
+        $conn does Connection-Strict;
         $conn
     }
+	
+	method get-response(HTTP::Request-Strict $request, Connection-Strict $conn, Bool :$bin --> HTTP::Response-Strict:D) {
+		my Blob[uint8] $first-chunk = Blob[uint8].new;
+		my $msg-body-pos;
+
+		CATCH {
+			when X::HTTP::NoResponse {
+				X::HTTP::Internal.new(rc => 500, reason => "server returned no data").throw;
+			}
+			when /'Connection reset by peer'/ {
+				X::HTTP::Internal.new(rc => 500, reason => "Connection reset by peer").throw;
+			}
+		}
+
+		# Header can be longer than one chunk
+		while my $t = $conn.recv( :bin ) {
+			$first-chunk ~= $t;
+
+			# Find the header/body separator in the chunk, which means
+			# we can parse the header seperately and are  able to figure
+			# out the correct encoding of the body.
+			$msg-body-pos = HTTP::UserAgent::search-header-end($first-chunk);
+			last if $msg-body-pos.defined;
+		}
+
+
+		# If the header would indicate that there won't
+		# be any content there may not be a \r\n\r\n at
+		# the end of the header.
+		my $header-chunk = do if $msg-body-pos.defined {
+			$first-chunk.subbuf(0, $msg-body-pos);
+		}
+		else {
+			# Assume we have the whole header because if the server
+			# didn't send it we're stuffed anyway
+			$first-chunk;
+		}
+
+
+		my HTTP::Response-Strict $response = HTTP::Response-Strict.new($header-chunk);
+		$response.request = $request;
+
+		if $response.has-content {
+			if !$msg-body-pos.defined {
+				X::HTTP::Internal.new(rc => 500, reason => "server returned no data").throw;
+			}
+
+
+			my $content = $first-chunk.subbuf($msg-body-pos);
+			# Turn the inner exceptions to ours
+			# This may really want to be outside
+			CATCH {
+				when X::HTTP::ContentLength {
+					X::HTTP::Header.new( :rc($_.message), :response($response) ).throw
+				}
+			}
+			# We also need to handle 'Transfer-Encoding: chunked', which means
+			# that we request more chunks and assemble the response body.
+			if $response.is-chunked {
+				$content = self.get-chunked-content($conn, $content);
+			}
+			elsif $response.content-length -> $content-length is copy {
+				$content = self.get-content($conn, $content, $content-length);
+			}
+			else {
+				$content = self.get-content($conn, $content);
+			}
+
+			$response.content = $content andthen $response.content = $response.decoded-content(:$bin);
+		}
+		$response
+	}
 }
