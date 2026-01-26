@@ -1,6 +1,6 @@
 use HTTP::Message;
 use HTTP::Status;
-use HTTP::Request;
+use HTTP::Request:auth<zef:raku-community-modules>;
 use HTTP::UserAgent::Exception;
 
 unit class HTTP::Response is HTTP::Message;

@@ -1,7 +1,7 @@
 unit class HTTP::UserAgent;
 
-use HTTP::Response;
-use HTTP::Request;
+use HTTP::Response:auth<zef:raku-community-modules>;
+use HTTP::Request:auth<zef:raku-community-modules>;
 use HTTP::Cookies;
 use HTTP::UserAgent::Common;
 use HTTP::UserAgent::Exception;

@@ -2,8 +2,8 @@ use URI;
 
 use HTTP::UserAgent;
 use HTTP::Message;
-use HTTP::Request;
-use HTTP::Response;
+use HTTP::Request:auth<zef:raku-community-modules>;
+use HTTP::Response:auth<zef:raku-community-modules>;
 use HTTP::Header;
 
 class HTTP::Header-Strict is HTTP::Header {
