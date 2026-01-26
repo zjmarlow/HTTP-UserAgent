@@ -160,7 +160,7 @@ class HTTP::Message-Strict is HTTP::Message {
             # https://datatracker.ietf.org/doc/html/rfc2616#section-7.2
             # https://datatracker.ietf.org/doc/html/rfc2616#section-14.41
 			# not supporting chunked Str atm
-            $s = join $CRLF, $s, $.content || '';
+            $s = join $CRLF, $s, $.content;
         }
         if $.content and $debug {
             if $bin || self.is-binary {
