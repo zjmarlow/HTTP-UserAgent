@@ -29,7 +29,7 @@ role Connection {
     }
 }
 
-has Int $.timeout is rw = 180;
+has Int $.timeout is rw;
 has $.useragent;
 has HTTP::Cookies $.cookies is rw = HTTP::Cookies.new(
     file     => tempfile[0],
@@ -71,7 +71,7 @@ my sub _index_buf(Blob $input, Blob $sub) {
     -1
 }
 
-submethod BUILD(:$!useragent, Bool :$!throw-exceptions, :$!max-redirects = 5, :$!debug, :$!redirects-in-a-row) {
+submethod BUILD(:$!useragent, Bool :$!throw-exceptions, :$!max-redirects = 5, :$!debug, :$!redirects-in-a-row, :$!timeout = 180) {
     $!useragent = get-ua($!useragent) if $!useragent.defined;
     if $!debug.defined {
         if $!debug ~~ Bool and $!debug == True {
