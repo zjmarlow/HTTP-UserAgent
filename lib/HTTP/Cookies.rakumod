@@ -1,7 +1,7 @@
 unit class HTTP::Cookies;
 
 use HTTP::Cookie;
-use HTTP::Response;
+use HTTP::Response:auth<zef:raku-community-modules>;
 use HTTP::Request:auth<zef:raku-community-modules>;
 use DateTime::Parse;
 
