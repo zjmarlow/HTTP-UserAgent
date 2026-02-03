@@ -4,7 +4,7 @@ use Test;
 
 use URI;
 
-plan 11;
+plan 13;
 
 # new
 my $ua = HTTP::UserAgent.new;
@@ -107,5 +107,10 @@ if %*ENV<NETWORK_TESTING> {
 else {
     skip "NETWORK_TESTING not set", 8;
 }
+
+$ua = HTTP::UserAgent.new;
+is $ua.timeout, 180, 'default timeout provided';
+$ua = HTTP::UserAgent.new: timeout => 120;
+is $ua.timeout, 120, 'constructor accepts timeout';
 
 # vim: expandtab shiftwidth=4
