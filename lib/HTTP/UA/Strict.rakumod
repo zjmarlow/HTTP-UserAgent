@@ -9,7 +9,7 @@ use HTTP::Header;
 class HTTP::Header::Strict is HTTP::Header {
     use HTTP::Header::ETag;
     
-    grammar HTTP::Header::Strict::Grammar {
+    grammar Grammar {
         token TOP {
             <message-header>
         }
@@ -59,7 +59,7 @@ class HTTP::Header::Strict is HTTP::Header {
         }
     }
 
-    class HTTP::Header::Strict::Actions {
+    class Grammar::Actions {
         method etag ( $/ ) {
             $*OBJ.field:
                     HTTP::Header::ETag.new:
@@ -91,9 +91,9 @@ class HTTP::Header::Strict is HTTP::Header {
     
     method parse($raw) {
         my $*OBJ = self;
-        HTTP::Header::Strict::Grammar.parse:
+        Grammar.parse:
                 $raw,
-                actions => HTTP::Header::Strict::Actions
+                actions => Grammar::Actions
                 ;
     }
 }
