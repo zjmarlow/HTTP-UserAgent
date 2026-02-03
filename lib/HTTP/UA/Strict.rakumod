@@ -6,10 +6,10 @@ use HTTP::Request:auth<zef:raku-community-modules>;
 use HTTP::Response:auth<zef:raku-community-modules>;
 use HTTP::Header;
 
-class HTTP::Header-Strict is HTTP::Header {
+class HTTP::Header::Strict is HTTP::Header {
     use HTTP::Header::ETag;
     
-    grammar HTTP::Header-Strict::Grammar {
+    grammar HTTP::Header::Strict::Grammar {
         token TOP {
             <message-header>
         }
@@ -59,7 +59,7 @@ class HTTP::Header-Strict is HTTP::Header {
         }
     }
 
-    class HTTP::Header-Strict::Actions {
+    class HTTP::Header::Strict::Actions {
         method etag ( $/ ) {
             $*OBJ.field:
                     HTTP::Header::ETag.new:
@@ -91,20 +91,20 @@ class HTTP::Header-Strict is HTTP::Header {
     
     method parse($raw) {
         my $*OBJ = self;
-        HTTP::Header-Strict::Grammar.parse:
+        HTTP::Header::Strict::Grammar.parse:
                 $raw,
-                actions => HTTP::Header-Strict::Actions
+                actions => HTTP::Header::Strict::Actions
                 ;
     }
 }
 
-class HTTP::Message-Strict is HTTP::Message {
+class HTTP::Message::Strict is HTTP::Message {
     #| see https://docs.raku.org/language/grammars#Attributes_in_grammars
     my constant $CRLF = "\x[0d]\x[0a]";
     my constant $DELIM = $CRLF x 2;
     
     method new($content?, *%fields) {
-        my $header = HTTP::Header-Strict.new(|%fields);
+        my $header = HTTP::Header::Strict.new(|%fields);
         
         self.bless(:$header, :$content);
     }
@@ -121,7 +121,7 @@ class HTTP::Message-Strict is HTTP::Message {
             $.protocol = $first;
         }
         
-        # $.header = HTTP::Header-Strict.new;
+        # $.header = HTTP::Header::Strict.new;
         $.header.parse: $fields;
         return self unless $content;
         
@@ -179,7 +179,7 @@ class HTTP::Message-Strict is HTTP::Message {
 
 }
 
-class HTTP::Request-Strict is HTTP::Message-Strict is HTTP::Request {
+class HTTP::Request::Strict is HTTP::Message::Strict is HTTP::Request {
     my constant $CRLF = "\x[0D]\x[0A]";
     
     
@@ -208,17 +208,17 @@ class HTTP::Request-Strict is HTTP::Message-Strict is HTTP::Request {
                 }
             }
 
-            my $header = HTTP::Header-Strict.new(|%fields);
+            my $header = HTTP::Header::Strict.new(|%fields);
             self.new($method // 'GET', $uri, $header, :$bin);
         }
         else {
-            self.bless: header => HTTP::Header-Strict.new
+            self.bless: header => HTTP::Header::Strict.new
         }
     }
 
-    multi method new() { self.bless: header => HTTP::Header-Strict.new }
+    multi method new() { self.bless: header => HTTP::Header::Strict.new }
 
-    multi method new(HTTP::Request::RequestMethod $method, URI $uri, HTTP::Header-Strict $header, Bool :$bin) {
+    multi method new(HTTP::Request::RequestMethod $method, URI $uri, HTTP::Header::Strict $header, Bool :$bin) {
         my $url = $uri.grammar.parse_result.orig;
         my $file = $uri.path_query || '/';
 
@@ -230,7 +230,7 @@ class HTTP::Request-Strict is HTTP::Message-Strict is HTTP::Request {
     method Str ( :$debug, Bool :$bin ) {
         $.file = '/' ~ $.file unless $.file.starts-with: '/';
         my $s = "$.method $.file $.protocol";
-        join $CRLF, $s, self.HTTP::Message-Strict::Str: :$debug, :$bin;
+        join $CRLF, $s, self.HTTP::Message::Strict::Str: :$debug, :$bin;
     }
     method parse ( $raw_request ) {
         my @lines = $raw_request.split($CRLF);
@@ -247,15 +247,15 @@ class HTTP::Request-Strict is HTTP::Message-Strict is HTTP::Request {
         $.url ~= $.file;
 
         self.uri = URI.new($.url);
-        self.HTTP::Message-Strict::parse: $raw_request;
+        self.HTTP::Message::Strict::parse: $raw_request;
     }
 }
 
-class HTTP::Response-Strict is HTTP::Response is HTTP::Message-Strict {
+class HTTP::Response::Strict is HTTP::Response is HTTP::Message::Strict {
     my constant $CRLF = "\x[0D]\x[0A]";
     
     method next-request(--> HTTP::Request:D) {
-        my HTTP::Request-Strict $new-request;
+        my HTTP::Request::Strict $new-request;
 
         my $location = ~self.header.field('Location').values;
 
@@ -272,7 +272,7 @@ class HTTP::Response-Strict is HTTP::Response is HTTP::Message-Strict {
 
             my %args = $method => $location;
 
-            $new-request = HTTP::Request-Strict.new(|%args);
+            $new-request = HTTP::Request::Strict.new(|%args);
 
             unless ~$new-request.field('Host').values {
                 my $hh = ~$.request.field('Host').values;
@@ -288,15 +288,15 @@ class HTTP::Response-Strict is HTTP::Response is HTTP::Message-Strict {
     
     method Str(:$debug) {
         my $s = $.protocol ~ " " ~ $.status-line;
-        join $CRLF, $s, self.HTTP::Message-Strict::Str: :$debug;
+        join $CRLF, $s, self.HTTP::Message::Strict::Str: :$debug;
     }
 }
 
-class HTTP::UserAgent-Strict is HTTP::UserAgent {
+class HTTP::UserAgent::Strict is HTTP::UserAgent {
     constant CRLF = Buf.new(13, 10);
     
-    role Connection-Strict does HTTP::UserAgent::Connection {
-        method send-request(HTTP::Request-Strict $request ) {
+    role Connection::Strict does HTTP::UserAgent::Connection {
+        method send-request(HTTP::Request::Strict $request ) {
             $request.field(Connection => 'close') unless $request.field('Connection');
             if $request.binary {
                 self.print($request.Str(:bin));
@@ -317,7 +317,7 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
     }
     
     multi method get(URI $uri is copy, Bool :$bin,  *%header ) {
-        my $request  = HTTP::Request-Strict.new(GET => $uri, |%header);
+        my $request  = HTTP::Request::Strict.new(GET => $uri, |%header);
         self.request($request, :$bin)
     }
 
@@ -328,7 +328,7 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
     proto method post(|) {*}
 
     multi method post(URI $uri is copy, %form , Bool :$bin,  *%header) {
-        my $request = HTTP::Request-Strict.new(POST => $uri, |%header);
+        my $request = HTTP::Request::Strict.new(POST => $uri, |%header);
         $request.add-form-data(%form);
         self.request($request, :$bin)
     }
@@ -340,7 +340,7 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
     proto method put(|) {*}
 
     multi method put(URI $uri is copy, %form , Bool :$bin,  *%header) {
-        my $request = HTTP::Request-Strict.new(PUT => $uri, |%header);
+        my $request = HTTP::Request::Strict.new(PUT => $uri, |%header);
         $request.add-form-data(%form);
         self.request($request, :$bin)
     }
@@ -352,7 +352,7 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
     proto method delete(|) {*}
 
     multi method delete(URI $uri is copy, Bool :$bin,  *%header ) {
-        my $request  = HTTP::Request-Strict.new(DELETE => $uri, |%header);
+        my $request  = HTTP::Request::Strict.new(DELETE => $uri, |%header);
         self.request($request, :$bin)
     }
 
@@ -360,8 +360,8 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
 		self.delete(URI.new(HTTP::UserAgent::_clear-url($uri)), :$bin, |%header)
 	}
 
-    method request(HTTP::Request-Strict $request, Bool :$bin --> HTTP::Response-Strict:D) {
-        my HTTP::Response-Strict $response;
+    method request(HTTP::Request::Strict $request, Bool :$bin --> HTTP::Response::Strict:D) {
+        my HTTP::Response::Strict $response;
 
         # add cookies to the request
         $request.add-cookies($.cookies);
@@ -372,7 +372,7 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
         # if auth has been provided add it to the request
         self.setup-auth($request);
         $.debug-handle.say("==>>Send\n" ~ $request.Str(:debug)) if $.debug;
-        my Connection-Strict $conn = self.get-connection($request);
+        my Connection::Strict $conn = self.get-connection($request);
 
         if $conn.send-request($request) {
             $response = self.get-response($request, $conn, :$bin);
@@ -411,7 +411,7 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
         $response
     }
     
-    multi method get-connection(HTTP::Request-Strict $request --> Connection-Strict:D) {
+    multi method get-connection(HTTP::Request::Strict $request --> Connection::Strict:D) {
         my $host = $request.host;
         my $port = $request.port;
 
@@ -424,13 +424,13 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
             if $proxy_auth.defined {
                 $request.field(Proxy-Authorization => basic-auth-token($proxy_auth));
             }
-            $request.field(Connection-Strict => 'close');
+            $request.field(Connection::Strict => 'close');
         }
         self.get-connection($request, $host, $port)
     }
 
     my $https_lock = Lock.new;
-    multi method get-connection(HTTP::Request-Strict $request, Str $host, Int $port? --> Connection-Strict:D) {
+    multi method get-connection(HTTP::Request::Strict $request, Str $host, Int $port? --> Connection::Strict:D) {
         my $conn;
         if $request.scheme eq 'https' {
             $https_lock.lock;
@@ -442,11 +442,11 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
         else {
             $conn = IO::Socket::INET.new(:$host, :port($port // 80), :timeout($.timeout));
         }
-        $conn does Connection-Strict;
+        $conn does Connection::Strict;
         $conn
     }
 	
-	method get-response(HTTP::Request-Strict $request, Connection-Strict $conn, Bool :$bin --> HTTP::Response-Strict:D) {
+	method get-response(HTTP::Request::Strict $request, Connection::Strict $conn, Bool :$bin --> HTTP::Response::Strict:D) {
 		my Blob[uint8] $first-chunk = Blob[uint8].new;
 		my $msg-body-pos;
 
@@ -484,7 +484,7 @@ class HTTP::UserAgent-Strict is HTTP::UserAgent {
 		}
 
 
-		my HTTP::Response-Strict $response = HTTP::Response-Strict.new($header-chunk);
+		my HTTP::Response::Strict $response = HTTP::Response::Strict.new($header-chunk);
 		$response.request = $request;
 
 		if $response.has-content {

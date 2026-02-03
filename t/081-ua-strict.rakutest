@@ -1,4 +1,4 @@
-use HTTP::UA-Strict;
+use HTTP::UA::Strict;
 use HTTP::UserAgent::Common;
 use Test;
 
@@ -7,14 +7,14 @@ use URI;
 plan 11;
 
 # new
-my $ua = HTTP::UserAgent-Strict.new;
+my $ua = HTTP::UserAgent::Strict.new;
 nok $ua.useragent, 'new 1/3';
 
-$ua = HTTP::UserAgent-Strict.new(:useragent('test'));
+$ua = HTTP::UserAgent::Strict.new(:useragent('test'));
 is $ua.useragent, 'test', 'new 2/3';
 
 my $newua = get-ua('chrome_linux');
-$ua = HTTP::UserAgent-Strict.new(:useragent('chrome_linux'));
+$ua = HTTP::UserAgent::Strict.new(:useragent('chrome_linux'));
 is $ua.useragent, $newua, 'new 3/3';
 
 if %*ENV<NETWORK_TESTING> {
@@ -26,17 +26,17 @@ if %*ENV<NETWORK_TESTING> {
     lives-ok {
         my $response = $ua.get('github.com/');
         ok $response, 'get 1/3';
-        isa-ok $response, HTTP::Response-Strict, 'get 2/3';
+        isa-ok $response, HTTP::Response::Strict, 'get 2/3';
         ok $response.is-success, 'get 3/3';
     }, "get from 'github.com/'";
 
 # non-ascii encodings (github issue #35)
-    lives-ok { HTTP::UserAgent-Strict.new.get('http://www.baidu.com') }, 'Lived through gb2312 encoding';
+    lives-ok { HTTP::UserAgent::Strict.new.get('http://www.baidu.com') }, 'Lived through gb2312 encoding';
 
 # chunked encoding.
 
     skip 'Site changed. Need new site to cover this problem See #208';
-# lives-ok { HTTP::UserAgent-Strict.new.get('http://rakudo.org') }, "issue#51 - get rakudo.org (chunked encoding foul-up results in incomplete UTF-8 data)";
+# lives-ok { HTTP::UserAgent::Strict.new.get('http://rakudo.org') }, "issue#51 - get rakudo.org (chunked encoding foul-up results in incomplete UTF-8 data)";
 
     subtest {
         my Bool $have-json = True;
@@ -52,7 +52,7 @@ if %*ENV<NETWORK_TESTING> {
 	subtest {
 	    my $uri = 'http://eu.httpbin.org/post?foo=42&bar=x';
             my %data = :72foo, :bar<♵>;
-            my $ua = HTTP::UserAgent-Strict.new;
+            my $ua = HTTP::UserAgent::Strict.new;
             my $res;
             lives-ok { $res = $ua.post(URI.new($uri), %data, X-Foo => "foodle") }, "new make post";
             my $ret-data;
@@ -69,7 +69,7 @@ if %*ENV<NETWORK_TESTING> {
             }
         }, "with URI object";
         subtest {
-            my $ua = HTTP::UserAgent-Strict.new;
+            my $ua = HTTP::UserAgent::Strict.new;
             my $res;
             lives-ok { $res = $ua.post(URI.new($uri), %data, X-Foo => "foodle") }, "make post";
             my $ret-data;
@@ -86,7 +86,7 @@ if %*ENV<NETWORK_TESTING> {
             }
         }, "with URI object";
         subtest {
-            my $ua = HTTP::UserAgent-Strict.new;
+            my $ua = HTTP::UserAgent::Strict.new;
             my $res;
             lives-ok { $res = $ua.post($uri, %data, X-Foo => "foodle") }, "make post";
             my $ret-data;

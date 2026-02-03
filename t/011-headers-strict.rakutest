@@ -1,12 +1,12 @@
 use Test;
-use HTTP::UA-Strict;
+use HTTP::UA::Strict;
 
 plan 24;
 
 my constant $CRLF = "\x[0D]\x[0A]";
 
 # new
-my $h = HTTP::Header-Strict.new(a => "A", b => "B");
+my $h = HTTP::Header::Strict.new(a => "A", b => "B");
 
 is ~$h.field('b'), 'B', 'new';
 
@@ -47,12 +47,12 @@ ok not $h.field('a'), 'remove-field 1/1';
 $h.clear;
 ok not $h.field('b'), 'clear 1/1';
 
-$h = HTTP::Header-Strict.new(One => "one", Two => "two");
+$h = HTTP::Header::Strict.new(One => "one", Two => "two");
 
 is $h.hash<One>, "one", "Got one (hash 1/2)";
 is $h.hash<Two>, "two", "Got two (hash 2/2)";
 
-$h = HTTP::Header-Strict.new();
+$h = HTTP::Header::Strict.new();
 
 lives-ok { $h.parse('ETag: W/"1201-51b0ce7ad3900"') }, "parses ETag";
 is ~$h.field('ETag'), "1201-51b0ce7ad3900", "got the value we expected";
@@ -86,7 +86,7 @@ Link: </StyleSheets/public>; rel="stylesheet"
 P3P: policyref="http://www.w3.org/2014/08/p3p.xml"
 Title: Test of a utf8 page served as text/html with UTF8 BOM
 EOH
-   my $h = HTTP::Header-Strict.new;
+   my $h = HTTP::Header::Strict.new;
    $h.parse($htest);
    is $h.fields.elems,17, "got the number of fields we expected";
    ok $h.field('ETag').weak.defined, 'ETag\'s weakness is defined';

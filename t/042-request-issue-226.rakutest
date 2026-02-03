@@ -1,7 +1,7 @@
 use Test;
 
 use URI;
-use HTTP::UA-Strict;
+use HTTP::UA::Strict;
 
 plan 29;
 
@@ -14,7 +14,7 @@ my $file = '/cat/f.h?q=1&q=2';
 my $host = 'testsite.ext';
 
 # new
-my $r1 = HTTP::Request-Strict.new(POST => $url, test_field => 'this_is_field');
+my $r1 = HTTP::Request::Strict.new(POST => $url, test_field => 'this_is_field');
 
 is $r1.method, 'post'.uc, 'new 1/8';
 is $r1.url, $url, 'new 2/8';
@@ -22,8 +22,8 @@ is $r1.file, $file, 'new 3/8';
 is $r1.field('Host'), $host, 'new 4/8';
 is $r1.field('test_field'), 'this_is_field', 'new 5/8';
 ok $r1.Str ~~ /^POST\s$file/, 'new 6/8';
-isa-ok $r1, HTTP::Request-Strict, 'new 7/8';
-isa-ok $r1, HTTP::Message-Strict, 'new 8/8';
+isa-ok $r1, HTTP::Request::Strict, 'new 7/8';
+isa-ok $r1, HTTP::Message::Strict, 'new 8/8';
 
 # content
 $r1.add-content('n1=v1&a');
@@ -56,7 +56,7 @@ is $r1.method, 'PUT', 'set-method 1/1';
 # parse
 my $req = "GET /index HTTP/1.1\r\nHost: somesite\r\nAccept: test\r\n\r\nname=value&a=b\r\n";
 my $exp = "GET /index HTTP/1.1\r\nHost: somesite\r\nAccept: test\r\nContent-Length: 16\r\n\r\nname=value&a=b\r\n";
-$r1 = HTTP::Request-Strict.new.parse($req);
+$r1 = HTTP::Request::Strict.new.parse($req);
 
 is $r1.method, 'get'.uc, 'parse 1/6';
 is $r1.file, '/index', 'parse 2/6';
@@ -67,7 +67,7 @@ is $r1.Str, $exp, 'parse 6/6';
 
 subtest {
    my $r;
-   lives-ok { $r = HTTP::Request-Strict.new('GET', URI.new('http://foo.com/bar'), HTTP::Header.new(Foo => 'bar') ) }, "mew with positionals";
+   lives-ok { $r = HTTP::Request::Strict.new('GET', URI.new('http://foo.com/bar'), HTTP::Header.new(Foo => 'bar') ) }, "mew with positionals";
    is $r.method, 'GET', "right method";
    is $r.file, '/bar', "right file";
    is $r.field('Host'), 'foo.com', 'got right host';
@@ -75,7 +75,7 @@ subtest {
 
 subtest {
     subtest {
-        my $req = HTTP::Request-Strict.new(POST => URI.new('http://127.0.0.1/'));
+        my $req = HTTP::Request::Strict.new(POST => URI.new('http://127.0.0.1/'));
         lives-ok { $req.add-form-data({ foo => "b&r\x1F42B", }) }, "add-form-data";
         is $req.method, 'POST';
         is $req.header.field('content-type'), 'application/x-www-form-urlencoded';
@@ -83,7 +83,7 @@ subtest {
         is $req.content.decode, 'foo=b%26r%F0%9F%90%AB';
     }, 'add-form-data with positional Hash';
     subtest {
-        my $req = HTTP::Request-Strict.new(POST => URI.new('http://127.0.0.1/'));
+        my $req = HTTP::Request::Strict.new(POST => URI.new('http://127.0.0.1/'));
         lives-ok { $req.add-form-data( foo => "b&r\x1F42B", ) }, "add-form-data";
         is $req.method, 'POST';
         is $req.header.field('content-type'), 'application/x-www-form-urlencoded';
@@ -91,7 +91,7 @@ subtest {
         is $req.content.decode, 'foo=b%26r%F0%9F%90%AB';
     }, 'add-form-data with slurpy hash';
     subtest {
-        my $req = HTTP::Request-Strict.new(POST => 'http://127.0.0.1/', X-Foo => 'Bar');
+        my $req = HTTP::Request::Strict.new(POST => 'http://127.0.0.1/', X-Foo => 'Bar');
         lives-ok { $req.add-form-data([foo => "b&r\x1F42B",]) }, "add-form-data with array of pairs";
         is $req.method, 'POST';
         is $req.header.field('content-type'), 'application/x-www-form-urlencoded';
@@ -101,18 +101,18 @@ subtest {
     }, 'content by array';
     subtest {
         # need to set the host up front so it compares with the data nicely
-        my $req = HTTP::Request-Strict.new(POST => 'http://127.0.0.1/', Host => '127.0.0.1', content-type => 'multipart/form-data; boundary=XxYyZ');
+        my $req = HTTP::Request::Strict.new(POST => 'http://127.0.0.1/', Host => '127.0.0.1', content-type => 'multipart/form-data; boundary=XxYyZ');
         lives-ok { $req.add-form-data({ foo => "b&r", x   => ['t/dat/foo.txt'], }) }, "add-form-data";
         todo("issue seen on travis regarding line endings");
         is-deeply Buf[uint8].new($req.Str.encode), slurp("t/dat/multipart-1.dat", :bin);
     }, 'multipart implied by existing content-type';
     subtest {
-        my $req = HTTP::Request-Strict.new(POST => 'http://127.0.0.1/');
+        my $req = HTTP::Request::Strict.new(POST => 'http://127.0.0.1/');
         lives-ok { $req.add-form-data({ foo => "b&r", x   => ['t/dat/foo.txt'], }, :multipart) }, "add-form-data";
         like $req.header.field('content-type').Str, /"multipart\/form-data"/, "and got multipart data";
     }, 'multipart explicit';
     subtest {
-        my $req = HTTP::Request-Strict.new(POST => 'http://127.0.0.1/');
+        my $req = HTTP::Request::Strict.new(POST => 'http://127.0.0.1/');
         lives-ok { $req.add-form-data( foo => "b&r", x   => ['t/dat/foo.txt'], :multipart) }, "add-form-data";
         like $req.header.field('content-type').Str, /"multipart\/form-data"/, "and got multipart data";
     }, 'multipart explicit with slurpy hash (check no gobble adverb)';
@@ -132,8 +132,8 @@ my Str:D $expected = join $CRLF,
     "- four\n- five",   # content
 ; # FIXME : does not test: trailer, chunk extension, binary
 
-my HTTP::Request-Strict $r =
-    HTTP::Request-Strict.new:
+my HTTP::Request::Strict $r =
+    HTTP::Request::Strict.new:
             POST => $url;
 $r.add-content: "- four\n- five";
 is $r.Str, $expected, 'build non-chunked post';
