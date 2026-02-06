@@ -4,6 +4,7 @@ use HTTP::Header;
 use HTTP::MediaType;
 use Encode;
 
+has Bool $.strict is rw;
 has HTTP::Header $.header = HTTP::Header.new;
 has $.content is rw;
 
@@ -12,12 +13,13 @@ has $.protocol is rw = 'HTTP/1.1';
 has Bool $.binary = False;
 has Str  @.text-types;
 
-my $CRLF = "\r\n";
+my constant $CRLF = "\x[0d]\x[0a]";
+my constant $DELIM = $CRLF x 2;
 
-method new($content?, *%fields) {
-    my $header = HTTP::Header.new(|%fields);
+method new($content?, Bool :$strict, *%fields) {
+    my $header = HTTP::Header.new(:$strict, |%fields);
 
-    self.bless(:$header, :$content);
+    self.bless(:$header, :$content, :$strict);
 }
 
 method add-content($content) {
@@ -191,7 +193,43 @@ method clear {
     $.content = ''
 }
 
-method parse($raw_message) {
+method !parse ( $raw_message ) {
+    my ( $start-line, $rest ) = $raw_message.split: $CRLF, 2;
+    my ( $fields, $content ) = $rest.split: $DELIM, 2;
+    
+    my ($first, $second, $third) = $start-line.split(/\s+/);
+    if $third.index('/') { # is a request
+        $.protocol = $third;
+    }
+    else {               # is a response
+        $.protocol = $first;
+    }
+    
+    # $.header = HTTP::Header::Strict.new;
+    $.header.parse: $fields, :strict;
+    return self unless $content;
+    
+    if self.is-chunked {
+        # technically incorrect - content allowed to contain embedded CRLFs
+        my @lines = $content.split: $CRLF;
+        # pop zero-length Str that occurs after last chunk
+        #   what to do if this doesn't happen?
+        @lines.pop if @lines %2;
+        @lines = grep *,
+                    @lines.map:
+                            -> $d, $s { $d ~~ /^\d/ ?? $s !! Str }
+                ;
+        $.content = @lines.join;
+    } else {
+        $.content = $content;
+    }
+
+    self
+}
+
+method parse($raw_message, Bool :$strict) {
+    return self!parse: $raw_message if $!strict or $strict;
+    
     my @lines = $raw_message.split(/$CRLF/);
 
     my ($first, $second, $third) = @lines.shift.split(/\s+/);
@@ -225,14 +263,23 @@ method parse($raw_message) {
     self
 }
 
-method Str($eol = "\n", :$debug, Bool :$bin) {
+method Str($eol is copy = "\n", :$debug, Bool :$bin, Bool :$strict is copy) {
+    $strict ||= $!strict;
+    $eol = $CRLF if $strict;
+    
     my constant $max_size = 300;
-    my $s = $.header.Str($eol);
-    $s ~= $eol if $.content;
+    self.field: Content-Length => ( $!content.?encode or $!content ).bytes.Str
+        if $strict and $!content and not self.is-chunked;
+    my $s = $.header.Str($eol, :$strict);
+    $s ~= $eol unless $strict or not $.content;
     
     # The :bin will be passed from the H::UA
     if not $bin {
-        $s ~=  $.content ~ $eol if $.content and !$debug;
+        if $strict {
+            $s = join $CRLF, $s, $.content || '';
+        } else {
+            $s ~=  $.content ~ $eol if $.content and !$debug;
+        }
     }
     if $.content and $debug {
         if $bin || self.is-binary {

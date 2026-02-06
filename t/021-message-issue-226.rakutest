@@ -1,6 +1,6 @@
 use Test;
 
-use HTTP::UA::Strict;
+use HTTP::UserAgent;
 
 plan 23;
 
@@ -9,16 +9,12 @@ my constant $CRLF = "\x[0d]\x[0a]";
 ################################################################################
 
 # new
-# is HTTP::Message.^name, 'HTTP::Message::Strict', 'strict import';
-is HTTP::Message::Strict.^name, 'HTTP::Message::Strict', 'can use strict explicitly';
+my $m = HTTP::Message.new('somecontent', :strict, a => ['a1', 'a2']);
 
-my $m = HTTP::Message::Strict.new('somecontent', a => ['a1', 'a2']);
-
-# isa-ok $m, HTTP::Message, 'new 1/5';
-# isa-ok $m.header, HTTP::Header, 'new 2/5';
-isa-ok $m.header, HTTP::Header::Strict, 'new 3/5';
-is $m.field('a'), 'a1, a2', 'new 4/5';
-is $m.content, 'somecontent', 'new 5/5';
+isa-ok $m, HTTP::Message, 'new 1/4';
+isa-ok $m.header, HTTP::Header, 'new 2/4';
+is $m.field('a'), 'a1, a2', 'new 3/4';
+is $m.content, 'somecontent', 'new 4/4';
 
 # push-field
 $m.push-field(a => 'a3');
@@ -41,27 +37,26 @@ nok $m.field('a'), 'remove-field 1/1';
 # this test message is invalid according to RFC 7230, section 3.3.3, item 6.
 #   the expected value has been modified to include the trailing CRLF, which
 #   is taken to be part of the content
-my $to_parse =    "GET site HTTP/1.0\r\na: b, c\r\na: d\r\n"
-                ~ "\r\nline\r\n";
-$m.parse($to_parse);
+my $to_parse =    "GET site HTTP/1.0{$CRLF}a: b, c{$CRLF}a: d$CRLF"
+                ~ "{$CRLF}line$CRLF";
+$m.parse($to_parse, :strict);
 is $m.field('a'), 'b, c, d', 'parse 1/4';
 is $m.field('a').values[0], 'b', 'parse 2/4';
-# is $m.content, 'line', 'parse 3/4';
-is $m.content, "line\r\n", 'parse 3/4';
+is $m.content, "line$CRLF", 'parse 3/4';
 is $m.protocol, 'HTTP/1.0', 'parse 4/4';
 
 # Str
 # please see explanation to preceeding parse tests.
-is $m.Str, "a: b, c, d\r\nContent-Length: 6\r\n\r\nline\r\n", 'Str';
+is $m.Str(:strict), "a: b, c, d{$CRLF}Content-Length: 6{$CRLF x 2}line$CRLF", 'Str';
 
 # clear
 $m.clear;
-is $m.Str, "\r\n", 'clear 1/2 - body-less messages require final CRLF';
+is $m.Str(:strict), $CRLF, 'clear 1/2 - body-less messages require final CRLF';
 is $m.content, '', 'clear 2/2';
 
 ## parse a more complex example
 # new
-my $m2 = HTTP::Message::Strict.new;
+my $m2 = HTTP::Message.new: :strict;
 
 # parse
 $to_parse = "HTTP/1.1 200 OK\r\n"
@@ -84,7 +79,7 @@ $to_parse = "HTTP/1.1 200 OK\r\n"
           ~ "# Last updated Sat May 31 16:39:01 2014 (UTC)\n"
           ~ "# \n"
           ~ "# Explanation of the syntax:\n";
-$m2.parse($to_parse);
+$m2.parse($to_parse, :strict);
 
 # quotes generally not considered part of the content.  please see
 #   RFC 9110, section 5.5, second-to-last paragraph
@@ -97,20 +92,14 @@ is ~$m2.field('Transfer-Encoding'), 'chunked', 'parse complex 2/3';
 is ~$m2.field('Content-Type'), 'text/plain; charset=UTF-8', 'parse complex 3/3';
 
 subtest {
-   is HTTP::Message::Strict.new.charset, 'iso-8859-1', "dumb default charset";
-   is HTTP::Message::Strict.new(Content-Type => 'text/plain').charset, 'iso-8859-1', 'default text charset';
-   is HTTP::Message::Strict.new(Content-Type => 'application/xml').charset, 'utf-8', 'default "non-text" charset';
-   is HTTP::Message::Strict.new(Content-Type => 'text/html; charset=utf-8').charset, 'utf-8', "explicity charset";
+   is HTTP::Message.new(:strict).charset, 'iso-8859-1', "dumb default charset";
+   is HTTP::Message.new(:strict, Content-Type => 'text/plain').charset, 'iso-8859-1', 'default text charset';
+   is HTTP::Message.new(:strict, Content-Type => 'application/xml').charset, 'utf-8', 'default "non-text" charset';
+   is HTTP::Message.new(:strict, Content-Type => 'text/html; charset=utf-8').charset, 'utf-8', "explicity charset";
 }, "charset";
 
 ################################################################################
 
-# construct request - move to request 042-request-issue-226.rakutest
-# my $m = HTTP::Message::Strict.new:
-# 		'four',
-# 		Content-Type => 'text/plain',
-# 		Transfer-Encoding => 'chunked'
-# 		;
 subtest {
 	plan 8;
 	my Str:D $to-parse = join $CRLF,
@@ -123,7 +112,7 @@ subtest {
 		'0',        # last chunk
 		$CRLF,      # end of chunk body
 	; # FIXME : does not test: trailer, chunk extension, binary
-	my HTTP::Request::Strict:D $m = HTTP::Request::Strict.new.parse: $to-parse;
+	my HTTP::Request:D $m = HTTP::Request.new(:strict).parse: $to-parse, :strict;
 	
 	is $m.protocol, 'HTTP/1.1', 'protocol';
 	is $m.field('Transfer-Encoding'), 'chunked', 'parsed header';
@@ -141,7 +130,7 @@ subtest {
         '- four'    # chunk data
     ;
 	
-	is $m.Str, $expected, 'Str';
+	is $m.Str(:strict), $expected, 'Str';
 	
 	# add-content
 	$m.add-content: "\n- five";
@@ -154,7 +143,7 @@ subtest {
 		'',                             # end of header
 		"- four\n- five",                    # content
 	; # FIXME : does not test: trailer, chunk extension, binary
-	is $m.Str, $expected, 'non-chunked Str';
+	is $m.Str(:strict), $expected, 'non-chunked Str';
 }, 'chunked request';
 
 
@@ -166,12 +155,12 @@ subtest {
 	          ~ "Content-Length: 3\r\n"
 	          ~ "\r\n"
 	          ~ "a\nb";
-	my HTTP::Response::Strict:D $m2 = HTTP::Response::Strict.new.parse($to_parse);
+	my HTTP::Response:D $m2 = HTTP::Response.new(:strict).parse($to_parse, :strict);
 	ok $m2.is-text, 'text';
 	nok $m2.is-binary, 'not binary';
 	is $m2.field('Content-Length'), '3', 'Content-Length';
 	is $m2.content, "a\nb", 'non-chunked content ok';
-	is $m2.Str, $to_parse, 'non-chunked Str';
+	is $m2.Str(:strict), $to_parse, 'non-chunked Str';
 }, 'parse non-chunked response';
 
 
@@ -179,15 +168,16 @@ subtest {
 subtest {
 	plan 3;
 	# parse
-	my Str:D $to_parse = "HTTP/1.1 200 OK\r\n"
-	          ~ "Transfer-Encoding: chunked\r\n"
-	          ~ "\r\n"
-	          ~ "3\r\n"
-	          ~ "a\nb\r\n"
-	          ~ "0\r\n"
-	          ~ "\r\n"
-	          ;
-	my HTTP::Response::Strict:D $m2 = HTTP::Response::Strict.new.parse($to_parse);
+	my Str:D $to_parse = join $CRLF,
+			'HTTP/1.1 200 OK',
+	        'Transfer-Encoding: chunked',
+	        '',
+	        '3',
+	        "a\nb",
+	        '0',
+	    	''
+	        ;
+	my HTTP::Response:D $m2 = HTTP::Response.new(:strict).parse($to_parse, :strict);
 	ok $m2.is-text, 'text';
 	nok $m2.is-binary, 'not binary';
 	
@@ -200,7 +190,7 @@ subtest {
         "a\nb",     # chunk data
     ;
 	
-	is $m2.Str, $expected, 'Str';
+	is $m2.Str(:strict), $expected, 'Str';
 }, 'parse chunked response';
 
 # vim: expandtab shiftwidth=4

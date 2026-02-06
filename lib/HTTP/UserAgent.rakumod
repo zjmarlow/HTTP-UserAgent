@@ -16,12 +16,15 @@ constant CRLF = Buf.new(13, 10);
 
 # placeholder role to make signatures nicer
 # and enable greater abstraction
-our role Connection {
-    method send-request(HTTP::Request $request ) {
+role Connection {
+    method send-request(HTTP::Request $request, Bool :$strict) {
         $request.field(Connection => 'close') unless $request.field('Connection');
         if $request.binary {
             self.print($request.Str(:bin));
             self.write($request.content);
+        }
+        elsif $strict {
+            self.print: $request.Str;
         }
         else {
             self.print($request.Str ~ "\r\n");
@@ -29,6 +32,7 @@ our role Connection {
     }
 }
 
+has Bool $.strict is rw;
 has Int $.timeout is rw = 180;
 has $.useragent;
 has HTTP::Cookies $.cookies is rw = HTTP::Cookies.new(
@@ -43,7 +47,7 @@ has Bool $.throw-exceptions;
 has $.debug;
 has IO::Handle $.debug-handle;
 
-our sub search-header-end(Blob $input) {
+my sub search-header-end(Blob $input) {
     my $i = 0;
     my $input-bytes = $input.bytes;
     while $i+2 <= $input-bytes {
@@ -71,7 +75,7 @@ my sub _index_buf(Blob $input, Blob $sub) {
     -1
 }
 
-submethod BUILD(:$!useragent, Bool :$!throw-exceptions, :$!max-redirects = 5, :$!debug, :$!redirects-in-a-row) {
+submethod BUILD(:$!useragent, Bool :$!throw-exceptions, :$!max-redirects = 5, :$!debug, :$!redirects-in-a-row, :$!strict = False) {
     $!useragent = get-ua($!useragent) if $!useragent.defined;
     if $!debug.defined {
         if $!debug ~~ Bool and $!debug == True {
@@ -96,51 +100,57 @@ method auth(Str $login, Str $password) {
 
 proto method get(|) {*}
 
-multi method get(URI $uri is copy, Bool :$bin,  *%header ) {
-    my $request  = HTTP::Request.new(GET => $uri, |%header);
-    self.request($request, :$bin)
+multi method get(URI $uri is copy, Bool :$bin, Bool :$strict is copy,  *%header ) {
+    $strict ||= $!strict;
+    my $request  = HTTP::Request.new(GET => $uri, :$strict, |%header);
+    self.request($request, :$bin, :$strict)
 }
 
-multi method get(Str $uri is copy, Bool :$bin,  *%header ) {
-    self.get(URI.new(_clear-url($uri)), :$bin, |%header)
+multi method get(Str $uri is copy, Bool :$bin, Bool :$strict,  *%header ) {
+    self.get(URI.new(_clear-url($uri)), :$bin, :$strict, |%header)
 }
 
 proto method post(|) {*}
 
-multi method post(URI $uri is copy, %form , Bool :$bin,  *%header) {
-    my $request = HTTP::Request.new(POST => $uri, |%header);
+multi method post(URI $uri is copy, %form , Bool :$bin, Bool :$strict is copy,  *%header) {
+    $strict ||= $!strict;
+    my $request = HTTP::Request.new(POST => $uri, :$strict, |%header);
     $request.add-form-data(%form);
-    self.request($request, :$bin)
+    self.request($request, :$bin, :$strict)
 }
 
-multi method post(Str $uri is copy, %form, Bool :$bin, *%header ) {
-    self.post(URI.new(_clear-url($uri)), %form, |%header)
+# should :$bin also be passed along?
+multi method post(Str $uri is copy, %form, Bool :$bin, Bool :$strict, *%header ) {
+    self.post(URI.new(_clear-url($uri)), %form, :$strict, |%header)
 }
 
 proto method put(|) {*}
 
-multi method put(URI $uri is copy, %form , Bool :$bin,  *%header) {
-    my $request = HTTP::Request.new(PUT => $uri, |%header);
+multi method put(URI $uri is copy, %form , Bool :$bin, Bool :$strict is copy,  *%header) {
+    $strict ||= $!strict;
+    my $request = HTTP::Request.new(PUT => $uri, :$strict, |%header);
     $request.add-form-data(%form);
-    self.request($request, :$bin)
+    self.request($request, :$bin, :$strict)
 }
 
-multi method put(Str $uri is copy, %form, Bool :$bin, *%header ) {
-    self.put(URI.new(_clear-url($uri)), %form, |%header)
+multi method put(Str $uri is copy, %form, Bool :$bin, Bool :$strict, *%header ) {
+    self.put(URI.new(_clear-url($uri)), %form, :$strict, |%header)
 }
 
 proto method delete(|) {*}
 
-multi method delete(URI $uri is copy, Bool :$bin,  *%header ) {
-    my $request  = HTTP::Request.new(DELETE => $uri, |%header);
-    self.request($request, :$bin)
+multi method delete(URI $uri is copy, Bool :$bin, Bool :$strict is copy,  *%header ) {
+    $strict ||= $!strict;
+    my $request  = HTTP::Request.new(DELETE => $uri, :$strict, |%header);
+    self.request($request, :$bin, :$strict)
 }
 
-multi method delete(Str $uri is copy, Bool :$bin,  *%header ) {
-    self.delete(URI.new(_clear-url($uri)), :$bin, |%header)
+multi method delete(Str $uri is copy, Bool :$bin, Bool :$strict,  *%header ) {
+    self.delete(URI.new(_clear-url($uri)), :$bin, :$strict, |%header)
 }
 
-method request(HTTP::Request $request, Bool :$bin --> HTTP::Response:D) {
+method request(HTTP::Request $request, Bool :$bin, Bool :$strict is copy --> HTTP::Response:D) {
+    $strict ||= $!strict;
     my HTTP::Response $response;
 
     # add cookies to the request
@@ -151,11 +161,11 @@ method request(HTTP::Request $request, Bool :$bin --> HTTP::Response:D) {
 
     # if auth has been provided add it to the request
     self.setup-auth($request);
-    $.debug-handle.say("==>>Send\n" ~ $request.Str(:debug)) if $.debug;
+    $.debug-handle.say("==>>Send\n" ~ $request.Str(:debug, :$strict)) if $.debug;
     my Connection $conn = self.get-connection($request);
 
-    if $conn.send-request($request) {
-         $response = self.get-response($request, $conn, :$bin);
+    if $conn.send-request($request, :$strict) {
+         $response = self.get-response($request, $conn, :$bin, :$strict);
     }
     $conn.close;
 
@@ -171,8 +181,8 @@ method request(HTTP::Request $request, Bool :$bin --> HTTP::Response:D) {
         if $.max-redirects < $.redirects-in-a-row {
             X::HTTP::Response.new(:rc('Max redirects exceeded'), :response($response)).throw;
         }
-        my $new-request = $response.next-request();
-        return self.request($new-request);
+        my $new-request = $response.next-request(:$strict);
+        return self.request($new-request, :$strict);
     }
     else {
         $!redirects-in-a-row = 0;
@@ -260,7 +270,8 @@ method get-chunked-content(Connection $conn, Blob $content is rw --> Blob:D) {
     $content
 }
 
-method get-response(HTTP::Request $request, Connection $conn, Bool :$bin --> HTTP::Response:D) {
+method get-response(HTTP::Request $request, Connection $conn, Bool :$bin, Bool :$strict is copy --> HTTP::Response:D) {
+    $strict ||= $!strict;
     my Blob[uint8] $first-chunk = Blob[uint8].new;
     my $msg-body-pos;
 
@@ -298,7 +309,7 @@ method get-response(HTTP::Request $request, Connection $conn, Bool :$bin --> HTT
     }
 
 
-    my HTTP::Response $response = HTTP::Response.new($header-chunk);
+    my HTTP::Response $response = HTTP::Response.new($header-chunk, :$strict);
     $response.request = $request;
 
     if $response.has-content {
@@ -467,7 +478,7 @@ our sub getstore(Str $url, Str $file) is export(:simple) {
     $file.IO.spurt: get($url)
 }
 
-our sub _clear-url(Str $url is copy) {
+sub _clear-url(Str $url is copy) {
     $url.starts-with('http://' | 'https://')
       ?? $url
       !! "http://$url"
