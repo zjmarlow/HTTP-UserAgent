@@ -1,10 +1,12 @@
+use lib <lib t/lib>;
+
 use HTTP::UserAgent;
 use Test::Util::ServerPort;
 use Test;
 
 my $port = get-unused-port();
 
-use lib $*PROGRAM.sibling('lib').Str;
+# use lib $*PROGRAM.sibling('lib').Str;
 use TestServer;
 
 %*ENV<NO_PROXY> = 'localhost';

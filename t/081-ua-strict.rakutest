@@ -4,7 +4,7 @@ use Test;
 
 use URI;
 
-plan 8;
+plan 11;
 
 # new
 my $ua = HTTP::UserAgent.new: :strict;

@@ -23,8 +23,8 @@ role Connection {
             self.print($request.Str(:bin));
             self.write($request.content);
         }
-        elsif $strict {
-            self.print: $request.Str;
+        elsif $strict or $request.strict {
+            self.print: $request.Str: :strict;
         }
         else {
             self.print($request.Str ~ "\r\n");

@@ -16,7 +16,6 @@ has $.uri is rw;
 has Str $.host is rw;
 has Int $.port is rw;
 has Str $.scheme is rw;
-has Bool $.strict is rw;
 
 my constant $CRLF = "\x[0D]\x[0A]";
 
@@ -42,7 +41,7 @@ multi method new(Bool :$bin, Bool :$strict, *%args) {
         self.new($method // 'GET', $uri, $header, :$bin, :$strict);
     }
     else {
-        self.bless
+        self.bless: :$strict;
     }
 }
 
@@ -268,14 +267,14 @@ method make-boundary(int $size=10) {
 
 
 method Str (:$debug, Bool :$bin, Bool :$strict is copy) {
-    $strict ||= $!strict;
+    $strict ||= $.strict;
     $.file = '/' ~ $.file unless $.file.starts-with: '/';
     my $s = "$.method $.file $.protocol";
     join $CRLF, $s, callwith $CRLF, :$debug, :$bin, :$strict;
 }
 
 method parse($raw_request, Bool :$strict is copy) {
-    $strict ||= $!strict;
+    $strict ||= $.strict;
     my @lines = $raw_request.split($CRLF);
     ($.method, $.file) = @lines.shift.split(' ');
 
