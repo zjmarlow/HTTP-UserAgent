@@ -106,10 +106,9 @@ method next-request(--> HTTP::Request:D) {
     $new-request
 }
 
-method Str(:$debug, Bool :$strict is copy) {
-    $strict ||= $!strict;
+method Str(:$debug, Bool :$strict = $!strict) {
     my $s = $.protocol ~ " " ~ $!status-line;
-    join $CRLF, $s, callwith $CRLF, :$debug, :$strict;
+    $s ~ $CRLF ~ callwith $CRLF, :$debug, :$strict;
 }
 
 # vim: expandtab shiftwidth=4

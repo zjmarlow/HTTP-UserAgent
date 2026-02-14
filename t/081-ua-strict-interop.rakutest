@@ -8,7 +8,7 @@ use TestServer;
 
 my constant $CRLF = "\x[0D]\x[0A]";
 
-plan 3;
+plan 4;
 
 my $port = get-unused-port;
 
@@ -60,6 +60,15 @@ subtest {
 	is $eol, 'F', 'UA:strict with Message:!strict - no extra eol';
 	is $lok, 'T', 'UA:strict with Message:!strict - length matches';
 }, 'UA:strict is still strict with Message:!strict';
+
+subtest {
+	plan 2;
+	my $uas = HTTP::UserAgent.new: :strict;
+	my $rs = $uas.delete: "http://localhost:$port/DELETE";
+	my ( $eol, $lok ) = $rs.content.split: "\x0d";
+	is $eol, 'F', 'no extra eol';
+	is $lok, 'T', 'length matches';
+}, 'UA:strict delete';
 
 $done-promise.keep: 'shutdown';
 

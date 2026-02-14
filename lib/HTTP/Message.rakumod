@@ -16,10 +16,16 @@ has Str  @.text-types;
 my constant $CRLF = "\x[0d]\x[0a]";
 my constant $DELIM = $CRLF x 2;
 
-method new($content?, Bool :$strict, *%fields) {
+multi method new($content, Bool $strict = False, *%fields) {
     my $header = HTTP::Header.new(:$strict, |%fields);
 
     self.bless(:$header, :$content, :$strict);
+}
+
+multi method new(Bool $strict = False, *%fields) {
+    my $header = HTTP::Header.new(:$strict, |%fields);
+
+    self.bless(:$header, :$strict);
 }
 
 method add-content($content) {
@@ -193,7 +199,7 @@ method clear {
     $.content = ''
 }
 
-method !parse ( $raw_message ) {
+method !parse-strict ( $raw_message ) {
     my ( $start-line, $rest ) = $raw_message.split: $CRLF, 2;
     my ( $fields, $content ) = $rest.split: $DELIM, 2;
     
@@ -205,7 +211,6 @@ method !parse ( $raw_message ) {
         $.protocol = $first;
     }
     
-    # $.header = HTTP::Header::Strict.new;
     $.header.parse: $fields, :strict;
     return self unless $content;
     
@@ -217,7 +222,7 @@ method !parse ( $raw_message ) {
         @lines.pop if @lines %2;
         @lines = grep *,
                     @lines.map:
-                            -> $d, $s { $d ~~ /^\d/ ?? $s !! Str }
+                            -> $d, $s { $d ~~ /^<[0..9]>/ ?? $s !! Str }
                 ;
         $.content = @lines.join;
     } else {
@@ -228,7 +233,7 @@ method !parse ( $raw_message ) {
 }
 
 method parse($raw_message, Bool :$strict) {
-    return self!parse: $raw_message if $!strict or $strict;
+    return self!parse-strict: $raw_message if $!strict or $strict;
     
     my @lines = $raw_message.split(/$CRLF/);
 
@@ -263,20 +268,19 @@ method parse($raw_message, Bool :$strict) {
     self
 }
 
-method Str($eol is copy = "\n", :$debug, Bool :$bin, Bool :$strict is copy) {
-    $strict ||= $!strict;
+method Str($eol is copy = "\n", :$debug, Bool :$bin, Bool :$strict = $!strict) {
     $eol = $CRLF if $strict;
     
     my constant $max_size = 300;
     self.field: Content-Length => ( $!content.?encode or $!content ).bytes.Str
         if $strict and $!content and not self.is-chunked;
     my $s = $.header.Str($eol, :$strict);
-    $s ~= $eol unless $strict or not $.content;
+    $s ~= $eol if $!content and not $strict;
     
     # The :bin will be passed from the H::UA
     if not $bin {
         if $strict {
-            $s = join $CRLF, $s, $.content || '';
+            $s ~= $CRLF ~ ( $.content || '' );
         } else {
             $s ~=  $.content ~ $eol if $.content and !$debug;
         }

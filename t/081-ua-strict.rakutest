@@ -105,7 +105,7 @@ if %*ENV<NETWORK_TESTING> {
     }, "post";
 }
 else {
-    skip "NETWORK_TESTING not set", 5;
+    skip "NETWORK_TESTING not set", 8;
 }
 
 # vim: expandtab shiftwidth=4

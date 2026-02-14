@@ -100,8 +100,7 @@ method auth(Str $login, Str $password) {
 
 proto method get(|) {*}
 
-multi method get(URI $uri is copy, Bool :$bin, Bool :$strict is copy,  *%header ) {
-    $strict ||= $!strict;
+multi method get(URI $uri is copy, Bool :$bin, Bool :$strict = $!strict,  *%header ) {
     my $request  = HTTP::Request.new(GET => $uri, :$strict, |%header);
     self.request($request, :$bin, :$strict)
 }
@@ -112,8 +111,7 @@ multi method get(Str $uri is copy, Bool :$bin, Bool :$strict,  *%header ) {
 
 proto method post(|) {*}
 
-multi method post(URI $uri is copy, %form , Bool :$bin, Bool :$strict is copy,  *%header) {
-    $strict ||= $!strict;
+multi method post(URI $uri is copy, %form , Bool :$bin, Bool :$strict = $!strict,  *%header) {
     my $request = HTTP::Request.new(POST => $uri, :$strict, |%header);
     $request.add-form-data(%form);
     self.request($request, :$bin, :$strict)
@@ -126,8 +124,7 @@ multi method post(Str $uri is copy, %form, Bool :$bin, Bool :$strict, *%header )
 
 proto method put(|) {*}
 
-multi method put(URI $uri is copy, %form , Bool :$bin, Bool :$strict is copy,  *%header) {
-    $strict ||= $!strict;
+multi method put(URI $uri is copy, %form , Bool :$bin, Bool :$strict = $!strict,  *%header) {
     my $request = HTTP::Request.new(PUT => $uri, :$strict, |%header);
     $request.add-form-data(%form);
     self.request($request, :$bin, :$strict)
@@ -139,8 +136,7 @@ multi method put(Str $uri is copy, %form, Bool :$bin, Bool :$strict, *%header ) 
 
 proto method delete(|) {*}
 
-multi method delete(URI $uri is copy, Bool :$bin, Bool :$strict is copy,  *%header ) {
-    $strict ||= $!strict;
+multi method delete(URI $uri is copy, Bool :$bin, Bool :$strict = $!strict,  *%header ) {
     my $request  = HTTP::Request.new(DELETE => $uri, :$strict, |%header);
     self.request($request, :$bin, :$strict)
 }
@@ -149,8 +145,7 @@ multi method delete(Str $uri is copy, Bool :$bin, Bool :$strict,  *%header ) {
     self.delete(URI.new(_clear-url($uri)), :$bin, :$strict, |%header)
 }
 
-method request(HTTP::Request $request, Bool :$bin, Bool :$strict is copy --> HTTP::Response:D) {
-    $strict ||= $!strict;
+method request(HTTP::Request $request, Bool :$bin, Bool :$strict = $!strict --> HTTP::Response:D) {
     my HTTP::Response $response;
 
     # add cookies to the request
@@ -270,8 +265,7 @@ method get-chunked-content(Connection $conn, Blob $content is rw --> Blob:D) {
     $content
 }
 
-method get-response(HTTP::Request $request, Connection $conn, Bool :$bin, Bool :$strict is copy --> HTTP::Response:D) {
-    $strict ||= $!strict;
+method get-response(HTTP::Request $request, Connection $conn, Bool :$bin, Bool :$strict = $!strict --> HTTP::Response:D) {
     my Blob[uint8] $first-chunk = Blob[uint8].new;
     my $msg-body-pos;
 

@@ -17,6 +17,8 @@ has Str $.host is rw;
 has Int $.port is rw;
 has Str $.scheme is rw;
 
+has Bool $.strict is rw;
+
 my constant $CRLF = "\x[0D]\x[0A]";
 
 my $HRC_DEBUG = %*ENV<HRC_DEBUG>.Bool;
@@ -266,15 +268,13 @@ method make-boundary(int $size=10) {
 }
 
 
-method Str (:$debug, Bool :$bin, Bool :$strict is copy) {
-    $strict ||= $.strict;
+method Str (:$debug, Bool :$bin, Bool :$strict = $!strict) {
     $.file = '/' ~ $.file unless $.file.starts-with: '/';
     my $s = "$.method $.file $.protocol";
-    join $CRLF, $s, callwith $CRLF, :$debug, :$bin, :$strict;
+    $s ~ $CRLF ~ callwith $CRLF, :$debug, :$bin, :$strict;
 }
 
-method parse($raw_request, Bool :$strict is copy) {
-    $strict ||= $.strict;
+method parse($raw_request, Bool :$strict = $!strict) {
     my @lines = $raw_request.split($CRLF);
     ($.method, $.file) = @lines.shift.split(' ');
 

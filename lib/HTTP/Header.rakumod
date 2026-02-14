@@ -133,7 +133,7 @@ our class HTTP::Header::Actions {
 }
 
 # we want to pass arguments like this: .new(a => 1, b => 2 ...)
-method new(Bool :$strict, *%fields) {
+method new(Bool $strict = False, *%fields) {
     my @fields = %fields.sort(*.key).map: {
         HTTP::Header::Field.new(:name(.key), :values(.value.list));
     }
@@ -213,8 +213,8 @@ method Str($eol is copy = "\n", Bool :$strict) {
     @.fields.map({ "$_.name(): {self.field($_.name)}$eol" }).join
 }
 
-method parse($raw, Bool :$strict) {
-    if $!strict or $strict {
+method parse($raw, Bool :$strict = $!strict) {
+    if $strict {
         my $*OBJ = self;
         Grammar::Strict.parse: $raw, actions => Actions::Strict;
     } else {
