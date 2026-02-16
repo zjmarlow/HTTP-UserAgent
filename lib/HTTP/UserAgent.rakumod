@@ -17,13 +17,13 @@ constant CRLF = Buf.new(13, 10);
 # placeholder role to make signatures nicer
 # and enable greater abstraction
 role Connection {
-    method send-request(HTTP::Request $request, Bool :$strict) {
+    method send-request(HTTP::Request $request, Bool :$strict = $request.strict) {
         $request.field(Connection => 'close') unless $request.field('Connection');
         if $request.binary {
-            self.print($request.Str(:bin));
+            self.print($request.Str(:bin, :$strict));
             self.write($request.content);
         }
-        elsif $strict or $request.strict {
+        elsif $strict {
             self.print: $request.Str: :strict;
         }
         else {
