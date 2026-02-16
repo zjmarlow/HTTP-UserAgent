@@ -208,8 +208,8 @@ method clear() {
 }
 
 # get header as string
-method Str($eol is copy = "\n", Bool :$strict) {
-    $eol = $CRLF if $!strict or $strict;
+method Str($eol is copy = "\n", Bool :$strict = $!strict) {
+    $eol = $CRLF if $strict;
     @.fields.map({ "$_.name(): {self.field($_.name)}$eol" }).join
 }
 
