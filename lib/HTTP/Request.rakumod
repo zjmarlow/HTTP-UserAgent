@@ -25,7 +25,7 @@ my $HRC_DEBUG = %*ENV<HRC_DEBUG>.Bool;
 
 proto method new(|) {*}
 
-multi method new(Bool :$bin, Bool :$strict, *%args) {
+multi method new(Bool $strict = False, Bool :$bin, *%args) {
 
     if %args {
         my ($method, $url, $file, %fields, $uri);
@@ -39,17 +39,15 @@ multi method new(Bool :$bin, Bool :$strict, *%args) {
             }
         }
 
-        my $header = HTTP::Header.new(:$strict, |%fields);
-        self.new($method // 'GET', $uri, $header, :$bin, :$strict);
+        my $header = HTTP::Header.new($strict, |%fields);
+        self.new($method // 'GET', $uri, $header, $strict, :$bin);
     }
     else {
-        self.bless: :$strict;
+        self.bless: :$strict, :$bin;
     }
 }
 
-multi method new(Bool :$strict) { self.bless: :$strict }
-
-multi method new(RequestMethod $method, URI $uri, HTTP::Header $header, Bool :$bin, Bool :$strict) {
+multi method new(RequestMethod $method, URI $uri, HTTP::Header $header, Bool $strict = False, Bool :$bin) {
     my $url = $uri.grammar.parse_result.orig;
     my $file = $uri.path_query || '/';
 
@@ -268,13 +266,15 @@ method make-boundary(int $size=10) {
 }
 
 
-method Str (:$debug, Bool :$bin, Bool :$strict = $!strict) {
+method Str (:$debug, Bool :$bin, Bool :$strict is copy) {
+    $strict ||= $!strict;
     $.file = '/' ~ $.file unless $.file.starts-with: '/';
     my $s = "$.method $.file $.protocol";
     $s ~ $CRLF ~ callwith $CRLF, :$debug, :$bin, :$strict;
 }
 
-method parse($raw_request, Bool :$strict = $!strict) {
+method parse($raw_request, Bool :$strict is copy) {
+    $strict ||= $!strict;
     my @lines = $raw_request.split($CRLF);
     ($.method, $.file) = @lines.shift.split(' ');
 

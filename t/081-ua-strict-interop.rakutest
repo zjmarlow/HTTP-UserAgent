@@ -7,6 +7,7 @@ use Test::Util::ServerPort;
 use TestServer;
 
 my constant $CRLF = "\x[0D]\x[0A]";
+my constant $STRICT = True;
 
 plan 4;
 
@@ -20,7 +21,7 @@ say 'using port ', $port;
 
 subtest {
 	plan 2;
-	my $uas = HTTP::UserAgent.new: :strict;
+	my $uas = HTTP::UserAgent.new: $STRICT;
 	my $rs = $uas.post: "http://localhost:$port/POST", { hello => 'world' };
 	my ( $eol, $lok ) = $rs.content.split: "\x0d";
 	is $eol, 'F', 'no extra eol';
@@ -29,7 +30,7 @@ subtest {
 
 subtest {
 	plan 4;
-	my $ual = HTTP::UserAgent.new: :!strict;
+	my $ual = HTTP::UserAgent.new: not $STRICT;
 	my $rl = $ual.post: "http://localhost:$port/POST", { hello => 'world' };
 	my ( $eol, $lok ) = $rl.content.split: "\x0d";
 	is $eol, 'T', 'UA:!strict sends extra eol';
@@ -46,7 +47,7 @@ subtest {
 
 subtest {
 	plan 4;
-	my $uas = HTTP::UserAgent.new: :strict;
+	my $uas = HTTP::UserAgent.new: $STRICT;
 	my $rs = $uas.post: "http://localhost:$port/POST", { hello => 'world' };
 	my ( $eol, $lok ) = $rs.content.split: "\x0d";
 	is $eol, 'F', 'no extra eol';
@@ -63,7 +64,7 @@ subtest {
 
 subtest {
 	plan 2;
-	my $uas = HTTP::UserAgent.new: :strict;
+	my $uas = HTTP::UserAgent.new: $STRICT;
 	my $rs = $uas.delete: "http://localhost:$port/DELETE";
 	my ( $eol, $lok ) = $rs.content.split: "\x0d";
 	is $eol, 'F', 'no extra eol';

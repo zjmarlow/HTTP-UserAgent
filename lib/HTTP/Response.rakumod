@@ -19,7 +19,7 @@ submethod BUILD(:$!code) {
 proto method new(|) {*}
 
 # This candidate makes it easier to test weird responses
-multi method new(Blob:D $header-chunk, Bool :$strict) {
+multi method new(Blob:D $header-chunk, Bool $strict = False) {
     # See https://tools.ietf.org/html/rfc7230#section-3.2.4
     my ($rl, $header);
     if $strict {
@@ -39,8 +39,12 @@ multi method new(Blob:D $header-chunk, Bool :$strict) {
     $response
 }
 
-multi method new(Int:D $code = 200, Bool :$strict, *%fields) {
-    my $header = HTTP::Header.new(:$strict, |%fields);
+multi method new(Int:D $code = 200, *%fields) {
+    self.new: $code, False, |%fields;
+}
+
+multi method new(Int:D $code, Bool $strict, *%fields) {
+    my $header = HTTP::Header.new($strict, |%fields);
     self.bless(:$code, :$header, :$strict);
 }
 
@@ -106,7 +110,8 @@ method next-request(--> HTTP::Request:D) {
     $new-request
 }
 
-method Str(:$debug, Bool :$strict = $!strict) {
+method Str(:$debug, Bool :$strict is copy) {
+    $strict ||= $!strict;
     my $s = $.protocol ~ " " ~ $!status-line;
     $s ~ $CRLF ~ callwith $CRLF, :$debug, :$strict;
 }

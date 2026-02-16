@@ -18,13 +18,13 @@ my constant $DELIM = $CRLF x 2;
 my constant $STRICT = True; # prepare for assoc. strict to positional strict
 
 multi method new($content, Bool $strict = False, *%fields) {
-    my $header = HTTP::Header.new(:$strict, |%fields);
+    my $header = HTTP::Header.new($strict, |%fields);
 
     self.bless(:$header, :$content, :$strict);
 }
 
-multi method new(Bool $strict = False, *%fields) {
-    my $header = HTTP::Header.new(:$strict, |%fields);
+multi method new(Bool $strict = False, *%fields) is default {
+    my $header = HTTP::Header.new($strict, |%fields);
 
     self.bless(:$header, :$strict);
 }
@@ -250,7 +250,8 @@ method !parse-header-strict($header) {
     $!header.parse($header, :strict);
 }
 
-method parse($raw_message, Bool :$strict = $!strict) {
+method parse($raw_message, Bool :$strict is copy) {
+    $strict ||= $!strict;
     my $rest = self!parse-first($raw_message);
     my ($header, $content) = $rest.split($DELIM, 2);
     if $strict {
@@ -258,12 +259,13 @@ method parse($raw_message, Bool :$strict = $!strict) {
         self!parse-content-strict($content) if $content;
     } else {
         self!parse-header($header);
-        $!content = $content;
+        $!content = join "\n", grep so *, $content.split: $CRLF;
     }
     self
 }
 
-method Str($eol is copy = "\n", :$debug, Bool :$bin, Bool :$strict = $!strict) {
+method Str($eol is copy = "\n", :$debug, Bool :$bin, Bool :$strict is copy) {
+    $strict ||= $!strict;
     $eol = $CRLF if $strict;
     
     my constant $max_size = 300;

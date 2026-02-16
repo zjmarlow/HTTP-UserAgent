@@ -5,11 +5,12 @@ use HTTP::UserAgent;
 plan 23;
 
 my constant $CRLF = "\x[0d]\x[0a]";
+my constant $STRICT = True;
 
 ################################################################################
 
 # new
-my $m = HTTP::Message.new('somecontent', :strict, a => ['a1', 'a2']);
+my $m = HTTP::Message.new('somecontent', $STRICT, a => ['a1', 'a2']);
 
 isa-ok $m, HTTP::Message, 'new 1/4';
 isa-ok $m.header, HTTP::Header, 'new 2/4';
@@ -56,7 +57,7 @@ is $m.content, '', 'clear 2/2';
 
 ## parse a more complex example
 # new
-my $m2 = HTTP::Message.new: :strict;
+my $m2 = HTTP::Message.new: $STRICT;
 
 # parse
 $to_parse = "HTTP/1.1 200 OK\r\n"
@@ -92,10 +93,10 @@ is ~$m2.field('Transfer-Encoding'), 'chunked', 'parse complex 2/3';
 is ~$m2.field('Content-Type'), 'text/plain; charset=UTF-8', 'parse complex 3/3';
 
 subtest {
-   is HTTP::Message.new(:strict).charset, 'iso-8859-1', "dumb default charset";
-   is HTTP::Message.new(:strict, Content-Type => 'text/plain').charset, 'iso-8859-1', 'default text charset';
-   is HTTP::Message.new(:strict, Content-Type => 'application/xml').charset, 'utf-8', 'default "non-text" charset';
-   is HTTP::Message.new(:strict, Content-Type => 'text/html; charset=utf-8').charset, 'utf-8', "explicity charset";
+   is HTTP::Message.new($STRICT).charset, 'iso-8859-1', "dumb default charset";
+   is HTTP::Message.new($STRICT, Content-Type => 'text/plain').charset, 'iso-8859-1', 'default text charset';
+   is HTTP::Message.new($STRICT, Content-Type => 'application/xml').charset, 'utf-8', 'default "non-text" charset';
+   is HTTP::Message.new($STRICT, Content-Type => 'text/html; charset=utf-8').charset, 'utf-8', "explicity charset";
 }, "charset";
 
 ################################################################################
@@ -112,7 +113,7 @@ subtest {
 		'0',        # last chunk
 		$CRLF,      # end of chunk body
 	; # FIXME : does not test: trailer, chunk extension, binary
-	my HTTP::Request:D $m = HTTP::Request.new(:strict).parse: $to-parse, :strict;
+	my HTTP::Request:D $m = HTTP::Request.new($STRICT).parse: $to-parse, :strict;
 	
 	is $m.protocol, 'HTTP/1.1', 'protocol';
 	is $m.field('Transfer-Encoding'), 'chunked', 'parsed header';
@@ -155,7 +156,7 @@ subtest {
 	          ~ "Content-Length: 3\r\n"
 	          ~ "\r\n"
 	          ~ "a\nb";
-	my HTTP::Response:D $m2 = HTTP::Response.new(:strict).parse($to_parse, :strict);
+	my HTTP::Response:D $m2 = HTTP::Response.new(200, $STRICT).parse($to_parse, :strict);
 	ok $m2.is-text, 'text';
 	nok $m2.is-binary, 'not binary';
 	is $m2.field('Content-Length'), '3', 'Content-Length';
@@ -177,7 +178,7 @@ subtest {
 	        '0',
 	    	''
 	        ;
-	my HTTP::Response:D $m2 = HTTP::Response.new(:strict).parse($to_parse, :strict);
+	my HTTP::Response:D $m2 = HTTP::Response.new(200, $STRICT).parse($to_parse, :strict);
 	ok $m2.is-text, 'text';
 	nok $m2.is-binary, 'not binary';
 	

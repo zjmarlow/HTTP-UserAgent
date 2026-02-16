@@ -208,12 +208,14 @@ method clear() {
 }
 
 # get header as string
-method Str($eol is copy = "\n", Bool :$strict = $!strict) {
+method Str($eol is copy = "\n", Bool :$strict is copy) {
+    $strict ||= $!strict;
     $eol = $CRLF if $strict;
     @.fields.map({ "$_.name(): {self.field($_.name)}$eol" }).join
 }
 
-method parse($raw, Bool :$strict = $!strict) {
+method parse($raw, Bool :$strict is copy) {
+    $strict ||= $!strict;
     if $strict {
         my $*OBJ = self;
         Grammar::Strict.parse: $raw, actions => Actions::Strict;
