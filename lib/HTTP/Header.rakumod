@@ -208,13 +208,16 @@ method clear() {
 }
 
 # get header as string
-method Str($eol is copy = "\n", Bool :$strict is copy) {
+multi method Str(Str $eol is copy = "\n", Bool $strict is copy = False) {
     $strict ||= $!strict;
     $eol = $CRLF if $strict;
     @.fields.map({ "$_.name(): {self.field($_.name)}$eol" }).join
 }
+multi method Str (Bool $strict is copy = False) is default {
+    self.Str: "\n", $strict;
+}
 
-method parse($raw, Bool :$strict is copy) {
+method parse($raw, Bool $strict is copy = False) {
     $strict ||= $!strict;
     if $strict {
         my $*OBJ = self;

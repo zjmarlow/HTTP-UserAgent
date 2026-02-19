@@ -209,7 +209,7 @@ method !parse-content-strict ( $content ) {
         # pop zero-length Str that occurs after last chunk
         #   what to do if this doesn't happen?
         @lines.pop if @lines %2;
-        @lines = grep *,
+        @lines = grep so *,
                     @lines.map:
                             -> $d, $s { $d ~~ /^<[0..9]>/ ?? $s !! Str }
                 ;
@@ -247,15 +247,15 @@ method !parse-header($header) {
 }
 
 method !parse-header-strict($header) {
-    $!header.parse($header, :strict);
+    $!header.parse($header, $STRICT);
 }
 
-method parse($raw_message, Bool :$strict is copy) {
+method parse($raw_message, Bool $strict is copy = False) {
     $strict ||= $!strict;
     my $rest = self!parse-first($raw_message);
     my ($header, $content) = $rest.split($DELIM, 2);
     if $strict {
-        $!header.parse($header, :strict);
+        $!header.parse($header, $STRICT);
         self!parse-content-strict($content) if $content;
     } else {
         self!parse-header($header);
@@ -264,14 +264,14 @@ method parse($raw_message, Bool :$strict is copy) {
     self
 }
 
-method Str($eol is copy = "\n", :$debug, Bool :$bin, Bool :$strict is copy) {
+multi method Str(Str $eol is copy = "\n", Bool $strict is copy = False, :$debug, Bool :$bin) {
     $strict ||= $!strict;
     $eol = $CRLF if $strict;
     
     my constant $max_size = 300;
     self.field: Content-Length => ( $!content.?encode or $!content ).bytes.Str
         if $strict and $!content and not self.is-chunked;
-    my $s = $.header.Str($eol, :$strict);
+    my $s = $.header.Str($eol, $strict);
     $s ~= $eol if $!content and not $strict;
     
     # The :bin will be passed from the H::UA
@@ -295,6 +295,9 @@ method Str($eol is copy = "\n", :$debug, Bool :$bin, Bool :$strict is copy) {
     }
 
     $s
+}
+multi method Str(Bool $strict is copy = False, :$debug, Bool :$bin) {
+    self.Str: "\n", $strict, :$debug, :$bin;
 }
 
 # vim: expandtab shiftwidth=4

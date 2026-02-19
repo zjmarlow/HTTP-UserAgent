@@ -30,10 +30,10 @@ multi method new(Blob:D $header-chunk, Bool $strict = False) {
     X::HTTP::NoResponse.new.throw unless $rl;
 
     my $code = (try $rl.split(' ')[1].Int) // 500;
-    my $response = self.new($code, :$strict);
+    my $response = self.new($code, $strict);
     with $header {
         .=subst: /"\r"?"\n"$$/, '' unless $strict;
-        $response.header.parse: $header, :$strict;
+        $response.header.parse: $header, $strict;
     }
 
     $response
@@ -78,7 +78,8 @@ method set-code(Int:D $code) {
     $!status-line = $code ~ " " ~ get_http_status_msg($code);
 }
 
-method next-request(--> HTTP::Request:D) {
+method next-request(Bool $strict is copy = False --> HTTP::Request:D) {
+    $strict ||= $!strict;
     my HTTP::Request $new-request;
 
     my $location = ~self.header.field('Location').values;
@@ -96,7 +97,7 @@ method next-request(--> HTTP::Request:D) {
 
         my %args = $method => $location;
 
-        $new-request = HTTP::Request.new(|%args);
+        $new-request = HTTP::Request.new($strict, |%args);
 
         unless ~$new-request.field('Host').values {
             my $hh = ~$!request.field('Host').values;
@@ -110,10 +111,10 @@ method next-request(--> HTTP::Request:D) {
     $new-request
 }
 
-method Str(:$debug, Bool :$strict is copy) {
+method Str(Bool $strict is copy = False, :$debug) {
     $strict ||= $!strict;
     my $s = $.protocol ~ " " ~ $!status-line;
-    $s ~ $CRLF ~ callwith $CRLF, :$debug, :$strict;
+    $s ~ $CRLF ~ callwith $CRLF, $strict, :$debug;
 }
 
 # vim: expandtab shiftwidth=4

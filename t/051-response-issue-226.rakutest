@@ -37,7 +37,7 @@ is $r.status-line, '404 Not Found', 'set-code 1/1';
 # parse
 my $res = "HTTP/1.1 200 OK\r\nHost: hoscik\r\n\r\ncontent\r\n";
 my $exp = "HTTP/1.1 200 OK\r\nHost: hoscik\r\nContent-Length: 9\r\n\r\ncontent\r\n";
-$r = HTTP::Response.new(200, $STRICT).parse($res, :strict);
+$r = HTTP::Response.new(200, $STRICT).parse($res, $STRICT);
 is $r.Str, $exp, 'parse - Str 1/4';
 is $r.content, "content$CRLF", 'parse - content 2/4';
 is $r.status-line, '200 OK', 'parse - status-line 3/4';
@@ -99,7 +99,7 @@ subtest {
 	ok $r.is-text, 'is text';
 	nok $r.is-binary, 'not binary';
 	is $r.content, 'content', 'content';
-	is $r.Str(:strict), $expected, 'Str';
+	is $r.Str($STRICT), $expected, 'Str';
 }, 'build non-chunked Str';
 
 # vim: expandtab shiftwidth=4

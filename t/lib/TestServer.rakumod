@@ -64,6 +64,7 @@ module TestServer {
     }
     
     use HTTP::Request;
+    my constant $STRICT = True;
     sub test-full-message ( Promise $done-promise, Int :$port --> Promise:D ) is export {
         start {
             react {
@@ -72,8 +73,8 @@ module TestServer {
                 }
                 whenever IO::Socket::Async.listen: 'localhost', $port -> $conn {
                     whenever $conn.Supply: :bin -> $buf {
-                        my HTTP::Request $r = HTTP::Request.new: :strict;
-                        $r.parse: $buf.decode, :strict;
+                        my HTTP::Request $r = HTTP::Request.new: $STRICT;
+                        $r.parse: $buf.decode, $STRICT;
                         my ( $eol, $okl );
                         $eol = $r.content.ends-with: "\x0d\x0a";
                         $okl = $r.content.chars == .values.head.Int with $r.field: 'Content-Length';

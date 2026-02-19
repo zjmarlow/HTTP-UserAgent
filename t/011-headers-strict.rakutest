@@ -38,8 +38,8 @@ is any($h.header-field-names), 'a', 'header-field-names 2/3';
 is any($h.header-field-names), 'b', 'header-field-names 3/3';
 
 # Str
-is-deeply $h.Str(:strict), "a: a, a2, a3{$CRLF}b: B$CRLF", 'Str 1/2';
-is-deeply $h.Str('|', :strict), "a: a, a2, a3{$CRLF}b: B$CRLF", 'Str 2/2';
+is-deeply $h.Str($STRICT), "a: a, a2, a3{$CRLF}b: B$CRLF", 'Str 1/2';
+is-deeply $h.Str('|', $STRICT), "a: a, a2, a3{$CRLF}b: B$CRLF", 'Str 2/2';
 
 # remove-field
 $h.remove-field('a');
@@ -56,15 +56,15 @@ is $h.hash<Two>, "two", "Got two (hash 2/2)";
 
 $h = HTTP::Header.new: $STRICT;
 
-lives-ok { $h.parse('ETag: W/"1201-51b0ce7ad3900"', :strict) }, "parses ETag";
+lives-ok { $h.parse('ETag: W/"1201-51b0ce7ad3900"', $STRICT) }, "parses ETag";
 is ~$h.field('ETag'), "1201-51b0ce7ad3900", "got the value we expected";
 ok $h.field('ETag').weak, 'weak ETag';
 
-lives-ok { $h.parse('expires: Wed, 27 Jan 2016 17:44:43 GMT', :strict) }, "parses date on a Wed";
+lives-ok { $h.parse('expires: Wed, 27 Jan 2016 17:44:43 GMT', $STRICT) }, "parses date on a Wed";
 ok $h.field('expires') ~~ /^^Wed/, "Does not trip start of field value starting with 'W'";
 
 # ugexe++ -- See http://irclog.perlgeek.de/perl6/2017-09-27#i_15227591
-lives-ok { $h.parse('Custom-Auth-Header-Strict: W/7fhEfhkjafeHF', :strict) }, "parses ETag like";
+lives-ok { $h.parse('Custom-Auth-Header-Strict: W/7fhEfhkjafeHF', $STRICT) }, "parses ETag like";
 is ~$h.field('Custom-Auth-Header-Strict'), 'W/7fhEfhkjafeHF', 'got the non truncated value';
 
 subtest {
@@ -89,7 +89,7 @@ P3P: policyref="http://www.w3.org/2014/08/p3p.xml"
 Title: Test of a utf8 page served as text/html with UTF8 BOM
 EOH
    my $h = HTTP::Header.new: $STRICT;
-   $h.parse($htest, :strict);
+   $h.parse($htest, $STRICT);
    is $h.fields.elems,17, "got the number of fields we expected";
    ok $h.field('ETag').weak.defined, 'ETag\'s weakness is defined';
    nok $h.field('ETag').weak, 'non-weak ETag';

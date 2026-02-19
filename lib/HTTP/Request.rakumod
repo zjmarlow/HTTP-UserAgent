@@ -266,14 +266,14 @@ method make-boundary(int $size=10) {
 }
 
 
-method Str (:$debug, Bool :$bin, Bool :$strict is copy) {
+method Str (Bool $strict is copy = False, :$debug, Bool :$bin) {
     $strict ||= $!strict;
     $.file = '/' ~ $.file unless $.file.starts-with: '/';
     my $s = "$.method $.file $.protocol";
-    $s ~ $CRLF ~ callwith $CRLF, :$debug, :$bin, :$strict;
+    $s ~ $CRLF ~ callwith $CRLF, $strict, :$debug, :$bin;
 }
 
-method parse($raw_request, Bool :$strict is copy) {
+method parse($raw_request, Bool $strict is copy = False) {
     $strict ||= $!strict;
     my @lines = $raw_request.split($CRLF);
     ($.method, $.file) = @lines.shift.split(' ');

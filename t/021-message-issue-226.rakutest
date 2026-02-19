@@ -40,7 +40,7 @@ nok $m.field('a'), 'remove-field 1/1';
 #   is taken to be part of the content
 my $to_parse =    "GET site HTTP/1.0{$CRLF}a: b, c{$CRLF}a: d$CRLF"
                 ~ "{$CRLF}line$CRLF";
-$m.parse($to_parse, :strict);
+$m.parse($to_parse, $STRICT);
 is $m.field('a'), 'b, c, d', 'parse 1/4';
 is $m.field('a').values[0], 'b', 'parse 2/4';
 is $m.content, "line$CRLF", 'parse 3/4';
@@ -48,11 +48,11 @@ is $m.protocol, 'HTTP/1.0', 'parse 4/4';
 
 # Str
 # please see explanation to preceeding parse tests.
-is $m.Str(:strict), "a: b, c, d{$CRLF}Content-Length: 6{$CRLF x 2}line$CRLF", 'Str';
+is $m.Str($STRICT), "a: b, c, d{$CRLF}Content-Length: 6{$CRLF x 2}line$CRLF", 'Str';
 
 # clear
 $m.clear;
-is $m.Str(:strict), $CRLF, 'clear 1/2 - body-less messages require final CRLF';
+is $m.Str($STRICT), $CRLF, 'clear 1/2 - body-less messages require final CRLF';
 is $m.content, '', 'clear 2/2';
 
 ## parse a more complex example
@@ -80,7 +80,7 @@ $to_parse = "HTTP/1.1 200 OK\r\n"
           ~ "# Last updated Sat May 31 16:39:01 2014 (UTC)\n"
           ~ "# \n"
           ~ "# Explanation of the syntax:\n";
-$m2.parse($to_parse, :strict);
+$m2.parse($to_parse, $STRICT);
 
 # quotes generally not considered part of the content.  please see
 #   RFC 9110, section 5.5, second-to-last paragraph
@@ -113,7 +113,7 @@ subtest {
 		'0',        # last chunk
 		$CRLF,      # end of chunk body
 	; # FIXME : does not test: trailer, chunk extension, binary
-	my HTTP::Request:D $m = HTTP::Request.new($STRICT).parse: $to-parse, :strict;
+	my HTTP::Request:D $m = HTTP::Request.new($STRICT).parse: $to-parse, $STRICT;
 	
 	is $m.protocol, 'HTTP/1.1', 'protocol';
 	is $m.field('Transfer-Encoding'), 'chunked', 'parsed header';
@@ -131,7 +131,7 @@ subtest {
         '- four'    # chunk data
     ;
 	
-	is $m.Str(:strict), $expected, 'Str';
+	is $m.Str($STRICT), $expected, 'Str';
 	
 	# add-content
 	$m.add-content: "\n- five";
@@ -144,7 +144,7 @@ subtest {
 		'',                             # end of header
 		"- four\n- five",                    # content
 	; # FIXME : does not test: trailer, chunk extension, binary
-	is $m.Str(:strict), $expected, 'non-chunked Str';
+	is $m.Str($STRICT), $expected, 'non-chunked Str';
 }, 'chunked request';
 
 
@@ -156,12 +156,12 @@ subtest {
 	          ~ "Content-Length: 3\r\n"
 	          ~ "\r\n"
 	          ~ "a\nb";
-	my HTTP::Response:D $m2 = HTTP::Response.new(200, $STRICT).parse($to_parse, :strict);
+	my HTTP::Response:D $m2 = HTTP::Response.new(200, $STRICT).parse($to_parse, $STRICT);
 	ok $m2.is-text, 'text';
 	nok $m2.is-binary, 'not binary';
 	is $m2.field('Content-Length'), '3', 'Content-Length';
 	is $m2.content, "a\nb", 'non-chunked content ok';
-	is $m2.Str(:strict), $to_parse, 'non-chunked Str';
+	is $m2.Str($STRICT), $to_parse, 'non-chunked Str';
 }, 'parse non-chunked response';
 
 
@@ -178,7 +178,7 @@ subtest {
 	        '0',
 	    	''
 	        ;
-	my HTTP::Response:D $m2 = HTTP::Response.new(200, $STRICT).parse($to_parse, :strict);
+	my HTTP::Response:D $m2 = HTTP::Response.new(200, $STRICT).parse($to_parse, $STRICT);
 	ok $m2.is-text, 'text';
 	nok $m2.is-binary, 'not binary';
 	
@@ -191,7 +191,7 @@ subtest {
         "a\nb",     # chunk data
     ;
 	
-	is $m2.Str(:strict), $expected, 'Str';
+	is $m2.Str($STRICT), $expected, 'Str';
 }, 'parse chunked response';
 
 # vim: expandtab shiftwidth=4

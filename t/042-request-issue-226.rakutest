@@ -55,14 +55,14 @@ is $r1.method, 'PUT', 'set-method 1/1';
 # parse
 my $req = "GET /index HTTP/1.1\r\nHost: somesite\r\nAccept: test\r\n\r\nname=value&a=b\r\n";
 my $exp = "GET /index HTTP/1.1\r\nHost: somesite\r\nAccept: test\r\nContent-Length: 16\r\n\r\nname=value&a=b\r\n";
-$r1 = HTTP::Request.new.parse($req, :strict);
+$r1 = HTTP::Request.new.parse($req, $STRICT);
 
 is $r1.method, 'get'.uc, 'parse 1/6';
 is $r1.file, '/index', 'parse 2/6';
 is $r1.url, 'http://somesite/index', 'parse 3/6';
 is $r1.field('Accept'), 'test', 'parse 4/6';
 is $r1.content, "name=value\&a=b$CRLF", 'parse 5/6';
-is $r1.Str(:strict), $exp, 'parse 6/6';
+is $r1.Str($STRICT), $exp, 'parse 6/6';
 
 subtest {
    my $r;
@@ -134,6 +134,6 @@ my Str:D $expected = join $CRLF,
 my HTTP::Request $r =
     HTTP::Request.new: $STRICT, POST => $url;
 $r.add-content: "- four\n- five";
-is $r.Str(:strict), $expected, 'build non-chunked post';
+is $r.Str($STRICT), $expected, 'build non-chunked post';
 
 # vim: expandtab shiftwidth=4
