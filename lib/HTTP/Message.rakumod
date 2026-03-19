@@ -211,7 +211,7 @@ method !parse-content-strict ( $content ) {
         @lines.pop if @lines %2;
         @lines = grep so *,
                     @lines.map:
-                            -> $d, $s { $d ~~ /^<[0..9]>/ ?? $s !! Str }
+                            -> $d, $s { $d ~~ /^<[0..9a..fA..F]>/ ?? $s !! Str }
                 ;
         $.content = @lines.join;
     } else {
